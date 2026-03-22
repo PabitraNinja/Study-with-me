@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - OSSSC Practice</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Admin Layout based on UI/UX best practices */
+        body { background-color: #f1f5f9; }
+        .admin-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: calc(100vh - 70px);
+        }
+        
+        .sidebar {
+            background: var(--card-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .sidebar button {
+            text-align: left;
+            padding: 1rem;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--secondary-color);
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .sidebar button:hover, .sidebar button.active {
+            background: #eff6ff;
+            color: var(--primary-color);
+        }
+
+        .main-panel {
+            padding: 2rem 4%;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .panel-section { display: none; }
+        .panel-section.active { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        /* Modernized Table */
+        .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .modern-table th { padding: 1rem; border-bottom: 2px solid var(--border-color); color: var(--secondary-color); font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em; }
+        .modern-table td { padding: 1rem; border-bottom: 1px solid var(--border-color); color: var(--text-color); }
+        .modern-table tbody tr:hover { background-color: #f8fafc; }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-active { background: #dcfce7; color: #1d4ed8; }
+        .status-blocked { background: #fee2e2; color: #b91c1c; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        /* Hardware Check Mini Widget */
+        .hardware-check {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: #166534;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Proctoring & Admin Portal</div>
+        <div class="nav-links">
+            <a href="index.html">Live Site</a>
+        </div>
+        <div class="user-profile" id="user-profile">
+            <span id="user-greeting">System Admin</span>
+            <button class="btn btn-outline" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="admin-layout">
+        <!-- Progressive Action Sidebar -->
+        <aside class="sidebar">
+            <button class="active" onclick="switchTab('dashboard')">Dashboard Overview</button>
+            <button onclick="switchTab('users')">User Management</button>
+            <button onclick="switchTab('files')">Exam Material (PDFs)</button>
+            <button onclick="switchTab('exams')">Live Exam Shifts</button>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-panel">
+            
+            <!-- Dashboard Tab -->
+            <section id="dashboard" class="panel-section active">
+                <div class="header-controls">
+                    <h2>Live Proctoring Dashboard</h2>
+                </div>
+
+                <div class="hardware-check">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div>
+                        <strong>System Systems Go:</strong> Server connection stable. Ready for live examination monitoring.
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Quick Actions</h3>
+                    <p style="color: var(--secondary-color); margin-top: 0.5rem;">Select a tab on the left to manage users, upload new exam papers, or add live exam shifts.</p>
+                </div>
+            </section>
+
+            <!-- Users Tab -->
+            <section id="users" class="panel-section">
+                <div class="header-controls">
+                    <h2>User Management</h2>
+                    <button class="btn btn-primary" onclick="document.getElementById('add-user-card').style.display='block'">+ Add New User</button>
+                </div>
+
+                <!-- Add User Form (Progressive Disclosure - hidden by default) -->
+                <div class="card" id="add-user-card" style="display: none; border-left: 4px solid var(--primary-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Create Account</h3>
+                        <button style="background:none; border:none; cursor:pointer; color:var(--secondary-color);" onclick="document.getElementById('add-user-card').style.display='none'">✕ Close</button>
+                    </div>
+                    <form id="add-user-form">
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="new-username" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="new-email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" id="new-password" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Role</label>
+                                <select id="new-role" required>
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Register User</button>
+                    </form>
+                </div>
+
+                <div class="card" style="padding: 0; overflow: hidden;">
+                    <div style="overflow-x: auto;">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <!-- Data populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Files Tab -->
+            <section id="files" class="panel-section">
+                <div class="header-controls">
+                    <h2>Exam Material Repository</h2>
+                </div>
+
+                <div class="card">
+                    <h3>Upload New Question Paper</h3>
+                    <form id="upload-file-form" style="margin-top: 1rem; display: flex; gap: 1rem; align-items: center;">
+                        <input type="file" id="file-input" accept="application/pdf" required style="flex-grow: 1; padding: 0.75rem; border: 1px dashed var(--secondary-color); border-radius: 0.375rem; background: #f8fafc;">
+                        <button type="submit" class="btn btn-primary">Secure Upload</button>
+                    </form>
+                </div>
+
+                <div class="card" style="padding: 0; overflow: hidden;">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Document Name</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="files-table-body">
+                            <!-- Data populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Exams Tab -->
+            <section id="exams" class="panel-section">
+                <div class="header-controls">
+                    <h2>Live Exam Shifts</h2>
+                    <button class="btn btn-primary" onclick="document.getElementById('add-exam-card').style.display='block'; document.getElementById('exam-form').reset();">+ Add Exam Shift</button>
+                </div>
+
+                <!-- Add Exam Form -->
+                <div class="card" id="add-exam-card" style="display: none; border-left: 4px solid var(--primary-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Add New Live Exam Shift</h3>
+                        <button style="background:none; border:none; cursor:pointer; color:var(--secondary-color);" onclick="document.getElementById('add-exam-card').style.display='none'">✕ Close</button>
+                    </div>
+                    <form id="exam-form">
+                        <div class="form-group">
+                            <label>Shift Title (e.g. OSSSC Shift 3)</label>
+                            <input type="text" id="exam-title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <input type="text" id="exam-desc" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Upload Target HTML Page (.html file)</label>
+                            <input type="file" id="exam-file" accept="text/html,.html" required style="padding: 0.75rem; border: 1px dashed var(--secondary-color); border-radius: 0.375rem; background: #f8fafc; width: 100%;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Save Exam Shift</button>
+                    </form>
+                </div>
+
+                <div class="card" style="padding: 0; overflow: hidden;">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Description</th>
+                                <th>Link</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="exams-table-body">
+                            <!-- Data populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+
+        if (!token || role !== 'admin') {
+            alert('Unauthorized Access');
+            window.location.href = 'index.html';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.panel-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sidebar button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            if (tabId === 'exams') loadExams();
+        }
+
+        // ---------- USER MANAGEMENT ---------- //
+        async function loadUsers() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/users', {
+                    headers: { 'Authorization': `Bearer ${token}`, 'x-auth-token': token }
+                });
+                if (!res.ok) throw new Error('Failed to load users');
+                
+                const data = await res.json();
+                const tbody = document.getElementById('users-table-body');
+                tbody.innerHTML = '';
+                
+                data.forEach(user => {
+                    const tr = document.createElement('tr');
+                    
+                    const statusClass = user.isBlocked ? 'status-blocked' : 'status-active';
+                    const statusText = user.isBlocked ? 'Blocked' : 'Active';
+                    const blockBtnText = user.isBlocked ? 'Unblock' : 'Block';
+                    
+                    const actionButtons = user.role === 'admin' ? 
+                        '<span style="color:var(--secondary-color); font-size: 0.9rem;">System Admin</span>' :
+                        `
+                        <button class="btn btn-outline" onclick="toggleBlock('${user._id}')" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; margin-right: 0.5rem;">${blockBtnText}</button>
+                        <button class="btn" style="background-color: #fee2e2; color: #b91c1c; padding: 0.25rem 0.75rem; font-size: 0.8rem;" onclick="deleteUser('${user._id}')">Delete</button>
+                        `;
+
+                    tr.innerHTML = `
+                        <td><strong>${user.username}</strong></td>
+                        <td>${user.email}</td>
+                        <td style="text-transform: capitalize;">${user.role}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td style="text-align: right;">${actionButtons}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        document.getElementById('add-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('new-username').value;
+            const email = document.getElementById('new-email').value;
+            const password = document.getElementById('new-password').value;
+            const role = document.getElementById('new-role').value;
+
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/users', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`, 
+                        'x-auth-token': token 
+                    },
+                    body: JSON.stringify({ username, email, password, role })
+                });
+
+                if (res.ok) {
+                    alert('User added successfully');
+                    document.getElementById('add-user-form').reset();
+                    document.getElementById('add-user-card').style.display='none';
+                    loadUsers();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to add user');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        async function toggleBlock(userId) {
+            try {
+                const res = await fetch(`http://localhost:5000/api/admin/users/${userId}/block`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}`, 'x-auth-token': token }
+                });
+                if (res.ok) loadUsers();
+            } catch (err) { console.error(err); }
+        }
+
+        async function deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+            try {
+                const res = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}`, 'x-auth-token': token }
+                });
+                if (res.ok) loadUsers();
+            } catch (err) { console.error(err); }
+        }
+
+        // ---------- FILE MANAGEMENT ---------- //
+        async function loadFiles() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/files', {
+                    headers: { 'Authorization': `Bearer ${token}`, 'x-auth-token': token }
+                });
+                if (!res.ok) throw new Error('Failed to load files');
+
+                const data = await res.json();
+                const tbody = document.getElementById('files-table-body');
+                tbody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="2" style="padding: 2rem; text-align: center; color: var(--secondary-color);">No PDF documents found.</td></tr>';
+                    return;
+                }
+
+                data.forEach(file => {
+                    if(!file.endsWith('.pdf')) return;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <svg width="20" height="20" fill="none" stroke="#ef4444" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                <a href="pdfs/${file}" target="_blank" style="color: var(--text-color); text-decoration: underline; font-weight: 500;">${file}</a>
+                            </div>
+                        </td>
+                        <td style="text-align: right;">
+                            <button class="btn" style="background-color: #fee2e2; color: #b91c1c; padding: 0.25rem 0.75rem; font-size: 0.8rem;" onclick="deleteFile('${file}')">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        document.getElementById('upload-file-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('file-input');
+            if (fileInput.files.length === 0) return;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/files', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'x-auth-token': token },
+                    body: formData
+                });
+                if (res.ok) {
+                    alert('File uploaded successfully!');
+                    fileInput.value = '';
+                    loadFiles();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to upload file');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        async function deleteFile(filename) {
+            if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+            try {
+                const res = await fetch(`http://localhost:5000/api/admin/files/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}`, 'x-auth-token': token }
+                });
+                if (res.ok) {
+                    loadFiles();
+                } else {
+                    alert('Failed to delete file.');
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // ---------- EXAMS MANAGEMENT ---------- //
+        async function loadExams() {
+            try {
+                const res = await fetch('http://localhost:5000/api/exams');
+                if (!res.ok) throw new Error('Failed to load exams');
+                
+                const data = await res.json();
+                const tbody = document.getElementById('exams-table-body');
+                tbody.innerHTML = '';
+                
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="padding: 2rem; text-align: center; color: var(--secondary-color);">No live exams found. Add some to display on the user dashboard!</td></tr>';
+                    return;
+                }
+
+                data.forEach(exam => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${exam.title}</strong></td>
+                        <td style="color: var(--secondary-color);">${exam.description}</td>
+                        <td><a href="${exam.link}" target="_blank" style="text-decoration: underline; color: var(--primary-color);">${exam.link}</a></td>
+                        <td style="text-align: right; min-width: 100px;">
+                            <button class="btn" style="background-color: #fee2e2; color: #b91c1c; padding: 0.25rem 0.5rem; font-size: 0.8rem;" onclick="deleteExam('${exam._id}')">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        document.getElementById('exam-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('exam-title').value;
+            const description = document.getElementById('exam-desc').value;
+            const fileInput = document.getElementById('exam-file');
+
+            if (fileInput.files.length === 0) return;
+
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('description', description);
+            formData.append('examFile', fileInput.files[0]); // match the multer config name
+
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/exams', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`, 
+                        'x-auth-token': token
+                    },
+                    body: formData
+                });
+
+                if (res.ok) {
+                    document.getElementById('add-exam-card').style.display = 'none';
+                    document.getElementById('exam-form').reset();
+                    loadExams();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to save exam.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred during submission.');
+            }
+        });
+
+        async function deleteExam(id) {
+            if (!confirm('Are you sure you want to delete this exam shift?')) return;
+            try {
+                await fetch(`http://localhost:5000/api/admin/exams/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}`, 'x-auth-token': token }
+                });
+                loadExams();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            localStorage.removeItem('username');
+            window.location.href = 'index.html';
+        }
+
+        loadUsers();
+        loadFiles();
+    </script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - OSSSC Practice</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #f1f5f9; }
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: calc(100vh - 70px);
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .sidebar button, .sidebar a {
+            text-align: left;
+            padding: 1rem;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--secondary-color);
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: block;
+        }
+
+        .sidebar button:hover, .sidebar a:hover, .sidebar .active {
+            background: #eff6ff;
+            color: var(--primary-color);
+        }
+
+        .main-panel {
+            padding: 2rem 4%;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .modern-table th { padding: 1rem; border-bottom: 2px solid var(--border-color); color: var(--secondary-color); font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em; }
+        .modern-table td { padding: 1rem; border-bottom: 1px solid var(--border-color); color: var(--text-color); }
+        .modern-table tbody tr:hover { background-color: #f8fafc; }
+
+        .score-badge {
+            background: #e0e7ff;
+            color: #1d4ed8;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-weight: bold;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">OSSSC Practice Portal</div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+        </div>
+        <div class="user-profile" id="user-profile">
+            <span id="user-greeting">Loading...</span>
+            <button class="btn btn-outline" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="dashboard-layout">
+        <!-- Progressive Sidebar -->
+        <aside class="sidebar">
+            <button class="active">Performance Overview</button>
+            <a href="index.html#exams">Take a New Exam</a>
+            <a href="pdfs" target="_blank">Study Materials</a>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-panel">
+            <div class="header-controls">
+                <h2>Your Performance Dashboard</h2>
+                <a href="index.html#exams" class="btn btn-primary">Start Practicing</a>
+            </div>
+
+            <!-- Stats Overview -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="card" style="margin-bottom: 0; padding: 1.5rem; text-align: center;">
+                    <p style="color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 0.5rem;">Tests Attempted</p>
+                    <h3 id="stat-tests-taken" style="font-size: 2rem; color: var(--primary-color);">0</h3>
+                </div>
+                <div class="card" style="margin-bottom: 0; padding: 1.5rem; text-align: center;">
+                    <p style="color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 0.5rem;">Average Score</p>
+                    <h3 id="stat-avg-score" style="font-size: 2rem; color: #10b981;">0%</h3>
+                </div>
+                <div class="card" style="margin-bottom: 0; padding: 1.5rem; text-align: center;">
+                    <p style="color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 0.5rem;">Total Points</p>
+                    <h3 id="stat-total-points" style="font-size: 2rem; color: #f59e0b;">0</h3>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); background: #f8fafc;">
+                    <h3 style="font-size: 1.1rem; color: var(--secondary-color);">Recent Exam Results</h3>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Exam Name</th>
+                                <th>Score Achieved</th>
+                                <th>Total Marks</th>
+                                <th>Completion Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="performance-table-body">
+                            <!-- Data populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="no-results-msg" style="display: none; padding: 3rem; text-align: center; color: var(--secondary-color);">
+                    <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-bottom: 1rem; opacity: 0.5;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    <p>No results found. Start your first mock test to see your performance metrics here.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'index.html';
+        }
+
+        const username = localStorage.getItem('username');
+        document.getElementById('user-greeting').textContent = `Candidate: ${username}`;
+
+        async function loadPerformance() {
+            try {
+                // Use relative path or dynamic host
+                const API_BASE = window.location.origin === 'http://localhost:5000' ? '/api' : 'http://localhost:5000/api';
+                const res = await fetch(`${API_BASE}/user/performance`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error('Failed to load performance');
+
+                const data = await res.json();
+                const tbody = document.getElementById('performance-table-body');
+
+                if (data.length === 0) {
+                    document.getElementById('no-results-msg').style.display = 'block';
+                    return;
+                }
+
+                let totalScore = 0;
+                let totalPossible = 0;
+
+                data.forEach(result => {
+                    totalScore += result.score;
+                    totalPossible += result.totalMarks;
+
+                    const tr = document.createElement('tr');
+                    const date = new Date(result.completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+                    tr.innerHTML = `
+                        <td><strong>${result.examName}</strong></td>
+                        <td><span class="score-badge">${result.score}</span></td>
+                        <td style="color: var(--secondary-color);">${result.totalMarks}</td>
+                        <td style="color: var(--secondary-color);">${date}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Update stats
+                document.getElementById('stat-tests-taken').textContent = data.length;
+                document.getElementById('stat-total-points').textContent = totalScore;
+                const avgPercent = totalPossible > 0 ? Math.round((totalScore / totalPossible) * 100) : 0;
+                document.getElementById('stat-avg-score').textContent = `${avgPercent}%`;
+
+            } catch (err) {
+                console.error(err);
+                // Only alert if it's truly a session issue (401)
+                // For now, let's keep it simple
+                alert('Session expired or error loading data. Please login again.');
+                logout();
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            localStorage.removeItem('username');
+            window.location.href = 'index.html';
+        }
+
+        loadPerformance();
+    </script>
+</body>
+</html>

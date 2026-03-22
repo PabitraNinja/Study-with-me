@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSSSC CRE </title>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --text: #202124; --success: #1e8e3e; --error: #d93025; --gray: #5f6368; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        header { background: #fff; padding: 10px 25px; border-bottom: 1px solid #dadce0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        #timer { background: var(--primary); color: white; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 0.95rem; }
+        main { display: flex; flex: 1; overflow: hidden; }
+        #question-area { flex: 3; padding: 30px; overflow-y: auto; background: white; margin: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        #sidebar { flex: 1.2; background: #fff; border-left: 1px solid #dadce0; padding: 20px; overflow-y: auto; }
+        .question-block { display: none; }
+        .question-block.active { display: block; }
+        .option { display: block; padding: 12px; margin: 8px 0; border: 1px solid #dadce0; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        .option.correct { background: #e6f4ea; border-color: var(--success); color: var(--success); pointer-events: none; }
+        .option.wrong { background: #fce8e6; border-color: var(--error); color: var(--error); pointer-events: none; }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .feedback-msg { margin-top: 15px; padding: 10px; border-radius: 4px; font-weight: bold; display: none; }
+        .q-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .q-circle { width: 35px; height: 35px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .q-circle.answered { background: var(--primary); color: white; border-color: var(--primary); }
+        .nav-btns { margin-top: 30px; display: flex; gap: 10px; }
+        .btn-ui { padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; color: white; transition: 0.3s; }
+        .btn-ui:hover { opacity: 0.8; }
+        #result-screen { display: none; text-align: center; padding: 50px; background: white; margin: 50px auto; border-radius: 12px; max-width: 600px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .passage { background: #fffef6; border-left: 4px solid #ffd54f; padding: 14px; margin-bottom: 12px; border-radius: 4px; color: #222; white-space: pre-wrap; }
+        /* Warning styles for final 5 minutes */
+        #time-warning { display: none; background: #ff9800; color: #fff; padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size:0.95rem; }
+        .timer-warning { background: #ff5722 !important; box-shadow: 0 0 12px rgba(255,87,34,0.5); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 rgba(255,87,34,0.6); } 50% { transform: scale(1.03); box-shadow: 0 0 18px rgba(255,87,34,0.9); } 100% { transform: scale(1); box-shadow: 0 0 0 rgba(255,87,34,0.6); } }
+        #fs-prompt { position: fixed; right: 18px; bottom: 18px; z-index: 9999; display: none; }
+        #fs-prompt .btn-ui { background: var(--primary); }
+    </style>
+</head>
+<body>
+
+<header>
+  <div><strong>08 oct 2025 2nd Shift</strong></div>
+  <div style="color:hwb(304 4% 4%)" ><strong>Made By Lucky  </a></strong></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div id="timer">90:00</div>
+    <div id="time-warning" role="alert" aria-live="assertive">Only 5 minutes remaining!</div>
+    <button class="btn-ui" style="background:var(--error)" onclick="finishExam()">SUBMIT EXAM</button>
+  </div>
+  <div id="fs-prompt"><button class="btn-ui" onclick="enableFullscreenAndLandscape()">Enter Fullscreen & Landscape</button></div>
+</header>
+
+<main id="exam-main">
+    <section id="question-area">
+        <div id="questions-container"></div>
+        <div class="nav-btns">
+            <button class="btn-ui" style="background:var(--gray)" onclick="changeQuestion(-1)">PREVIOUS</button>
+            <button class="btn-ui" style="background:var(--primary)" onclick="changeQuestion(1)">NEXT</button>
+        </div>
+    </section>
+
+    <aside id="sidebar">
+        <h4>Question Map</h4>
+        <div class="q-grid" id="palette"></div>
+    </aside>
+</main>
+
+<div id="result-screen"></div>
+
+<script>
+    const questions = [
+      //1
+  {
+    q: "At what annual rate of compound interest will a sum of ₹1,000 amount to ₹2,197 in 1.5 years, if the interest is compounded half-yearly?",
+    a: ["60%", "30%", "48%", "36%"],
+    c: 1,
+  },
+  //2
+  {
+    q: "A, B and C together can complete a piece of work in 20 days. They start working together, but A leaves after 8 days. B and C continue the remaining work and complete it in 20 more days. In how many days can A alone complete the entire work?",
+    a: ["45", "50", "55", "60"],
+    c: 2,
+  },
+  //3
+  {
+    q: "Which of the following is NOT divisible by 8?",
+    a: ["216", "320", "816", "716"],
+    c: 4,
+  },
+  //4
+  {
+    q: "Manish invested a certain sum of money at 10% per annum simple interest. If he receives an interest of ₹60,211 after 2 years, the sum (in ₹) he invested is:",
+    a: ["3,01,883", "3,01,444", "3,01,725", "3,01,055"],
+    c: 4,
+  },
+  //5
+  {
+    q: "A brick layering team consists of two masons A and B and a mechanical brick feeder. Mason A alone can finish the wall in 12 days and Mason B alone can finish it in 15 days. The brick feeder (when working) does the same amount of work as a worker who would finish the whole wall in 10 days. Initially the wall is one-sixth complete. Mason A works alone for the first day. On the 2nd day, Mason B joins and also the machine starts operating. The machine works in a repetitive pattern: 3 consecutive days working, then 1 day broken and these 4 days pattern repeats until the job finishes. Find the total number of days taken from the start until the wall is completely finished.",
+    a: ["6", "8", "9", "4"],
+    c: 4,
+  },
+//6
+  {
+    q: "A man loses 20% by selling an article for ₹120. If he sells it for ₹480, what will be his gain/loss percentage?",
+    a: ["Gain, 222%", "Loss, 221%", "Gain, 220%", "Loss, 223%"],
+    c: 3,
+  },
+    //7
+  {
+    q: "Given that 1490^{0.85} = x, 1490^{0.04} = y and x^{z} = y^{2} then the value of z is close to:",
+    a: ["1.95", "-1.95", "2.36", "0.09"],
+    c: 4,
+  },
+  //8
+  {
+    q: "A man covers a total distance of 200 km on a bicycle. For the first 4 hours, his speed was 15 km/h, and for the rest of the journey, his speed was 20 km/h. What is his average speed (in km/h)? (Round off your answer to one decimal place)",
+    a: ["19.3", "17.6", "18.2", "16.5"],
+    c: 3,
+  },
+  //9
+  {
+    q: "Simplify: 250 + 144 ÷ 12 - 30 * 2",
+    a: ["194", "202", "214", "200"],
+    c: 2,
+  },
+    //10
+  {
+    q: "Find the fourth proportional to 0.12, 0.21 and 8.",
+    a: ["15", "16", "14", "17"],
+    c: 3,
+  },
+  //11
+  {
+    q: "The average age of 28 students of a class is 25 years. If the age of the teacher is also included, the average age of the whole group becomes 26 years. The age (in years) of the teacher is:",
+    a: ["53", "54", "51", "50"],
+    c: 2,
+  },
+  //12
+  {
+    q: "The salaries of X, Y and Z are in the ratio 2:3:4. If their salaries are increased by 15%, 20% and 25% respectively, then what will be the ratio of their new salaries?",
+    a: ["3:2:4", "23:36:50", "50:36:23", "2:3:4"],
+    c: 2,
+  },
+    //13
+  {
+    q: "The volume of a right circular cone is equal to that of a sphere whose radius is one-fourth of the base radius of the cone. What is the ratio of the radius of the base to the height of the cone?",
+    a: ["1:4", "16:1", "1:16", "4:1"],
+    c: 2,
+  },
+    //14
+  {
+    q: "The marked price of an article is ₹360. The shopkeeper offers a discount of 11% on the purchase of the article. Thereby, he makes a profit of 20%. The cost price of the article is:",
+    a: ["₹267", "₹238", "₹284", "₹270"],
+    c: 1,
+  },
+    //15
+  {
+    q: "The ascending order of the following ratios 5:3, 7:10, 5:7 and 8:7 is:",
+    a: [
+      "7:10, 5:7, 8:7, 5:3",
+      "5:7, 7:10, 8:7, 5:3",
+      "7:10, 8:7, 5:3, 5:7",
+      "8:7, 5:3, 5:7, 7:10",
+    ],
+    c: 1,
+  },
+  //16
+  {
+    q: "A bag contains ₹2, ₹5 and ₹10 coins in the ratio 5:7:8, amounting to a total of ₹1,250. The number of ₹5 coins in the bag are:",
+    a: ["78", "84", "91", "70"],
+    c: 4,
+  },
+    //17
+  {
+    q: "If a and b are the roots of x^{2}-8x+28=0, then a quadratic equation whose roots are a^{2} and b^{2} is:",
+    a: [
+      "x^{2}+8x-784=0",
+      "x^{2}-8x-784=0",
+      "x^{2}+8x+784=0",
+      "x^{2}-8x+784=0",
+    ],
+    c: 4,
+  },
+  //18
+  {
+    q: "The area (in cm²) of an equilateral triangle of side 70 cm is:",
+    a: ["1225 √3", "1224 √3", "1228 √3", "1221 √3"],
+    c: 1,
+  },
+  //19
+  {
+    q: "If a merchant makes a profit of 25% after giving two successive discounts of 25% and 30%, then what is his markup percentage (rounded to the nearest integer)?",
+    a: ["150%", "156%", "138%", "125%"],
+    c: 3,
+  },
+    //20
+  {
+    q: "A student travels from his home to school at a speed of 19 km/hr and returns at a speed of 14 km/hr. The total time taken for the entire journey is 6 hours. What is the distance (in km, rounded off to one decimal place) between his home and school?",
+    a: ["48.3", "48.7", "48.4", "48.5"],
+    c: 3,
+  },
+    //21
+  {
+    q: "What is the main goal of the Digital Personal Data Protection (DPDP) Act, 2023, as outlined in the Draft Digital Personal Data Protection Rules, 2025?",
+    a: [
+      "To create a centralised data storage system",
+      "To regulate digital advertising",
+      "To protect digital data and hold fiduciaries accountable for breaches",
+      "To allow unrestricted use of personal data for businesses",
+    ],
+    c: 3,
+  },
+  //22
+  {
+    q: "According to the India Meteorological Department's 2024 Report, how many Regional Meteorological Centres are there in India as of July 2025?",
+    a: ["10", "8", "4", "6"],
+    c: 4,
+  },
+  //23
+  {
+    q: "Who proposed forming provincial standing committees during the 1886 Calcutta session of the Indian National Congress for better coordination?",
+    a: [
+      "Bal Gangadhar Tilak",
+      "Gopal Krishna Gokhale",
+      "Jawaharlal Nehru",
+      "Dadabhai Naoroji",
+    ],
+    c: 4,
+  },
+  //24
+  {
+    q: "According to the Odisha Economic Survey 2024–25, which two agricultural sub-sectors in the state are projected to grow at 6.7% in 2024–25, underscoring their rising importance?",
+    a: [
+      "Livestock and poultry",
+      "Horticulture and floriculture",
+      "Fisheries and forestry",
+      "Forestry and irrigation",
+    ],
+    c: 3,
+  },
+  //25
+  {
+    q: "The main aim of railway expansion in British India was to:",
+    a: [
+      "facilitate the movement of Indian troops",
+      "link resource-rich interiors to export ports",
+      "connect rural areas with irrigation systems",
+      "encourage migration of Indian workers",
+    ],
+    c: 2,
+  },
+  //26
+  {
+    q: "Who regulates Urban Co-operative Banks (UCBs) in India?",
+    a: [
+      "Registrar of Cooperative Societies",
+      "Central Registrar of Cooperative Societies",
+      "Reserve Bank of India",
+      "Ministry of Cooperation",
+    ],
+    c: 3,
+  },
+  //27
+  {
+    q: "Which of the following is the 9th Fundamental duty as mentioned in the Indian Constitution?",
+    a: [
+      "To safeguard public property and to abjure violence",
+      "To uphold and protect the sovereignty, unity and integrity of India",
+      "To value and preserve the rich heritage of our composite culture",
+      "To protect and improve the natural environment",
+    ],
+    c: 1,
+  },
+  //28
+  {
+    q: "In 2025, which of the following will help in studying the Earth's surface from space?",
+    a: [
+      "Earth Observing-1 (EO-1)",
+      "Chandrayaan-4",
+      "NASA-ISRO Synthetic Aperture Radar",
+      "Space Lens Technology (SLT)",
+    ],
+    c: 3,
+  },
+  //29
+  {
+    q: "The Vizhinjam Rock-cut cave which records back to the Pallava Dynasty is located in which of the following states of India?",
+    a: ["Odisha", "Andhra Pradesh", "Kerala", "Karnataka"],
+    c: 3,
+  },
+  //30
+  {
+    q: "What role does infrastructure play in economic development?",
+    a: [
+      "It increases the cost of goods.",
+      "It facilitates efficient production and distribution.",
+      "It leads to economic stagnation.",
+      "It restricts trade.",
+    ],
+    c: 2,
+  },
+  //31
+  {
+    q: "What is the phenomenon called when the Southwest Monsoon brings sudden heavy rainfall over India?",
+    a: ["Retreating Monsoon", "Cyclonic Burst", "Western Disturbance", "Burst of Monsoon"],
+    c: 4,
+  },
+  //32
+  {
+    q: "Which of the following books secured the 2025 International Booker Prize?",
+    a: ["The Paper Road", "Heart Lamp", "Broken Horizon", "The Last Reign"],
+    c: 2,
+  },
+  //33
+  {
+    q: "Which of the following features is associated with high pressure over northern India in winter?",
+    a: [
+      "Intense summer monsoon rainfall",
+      "Feeble offshore winds blowing from land",
+      "Onset of the Southwest Monsoon",
+      "Strong sea breezes from the Arabian Sea",
+    ],
+    c: 2,
+  },
+  //34
+  {
+    q: "Who assumed the pioneering role of Speaker for the Odisha Legislative Assembly in 1937?",
+    a: ["Nilakantha Das", "Krushna Chandra Gajapati Narayan Deo", "Harekrushna Mahatab", "Mukunda Prasad Das"],
+    c: 4,
+  },
+  //35
+  {
+    q: "What is the full form of SpaDeX, a mission launched by the Indian Space Research Organisation (ISRO) on 30 December 2024?",
+    a: ["Space Development Exercise", "Space Design Experiment", "Satellite Docking Exercise", "Space Docking Experiment"],
+    c: 4,
+  },
+  //36
+  {
+    q: "Which AI-powered smart medical device was launched in India to revolutionise kidney care?",
+    a: ["SUKHSANDESH platform", "RENALYX RxT‑21 hemodialysis machine", "BHARAT M2 hemodialysis machine", "GoQii Health Band"],
+    c: 2,
+  },
+  //37
+  {
+    q: "The Bhagavad Gita is spread across eighteen ________.",
+    a: ["adhyays", "parvas", "mandalas", "sutras"],
+    c: 1,
+  },
+  //38
+  {
+    q: "In June 2024, which organisation’s Multidimensional Poverty Index (MPI) report did CM Majhi cite in the Odisha Assembly?",
+    a: ["NITI Aayog", "United Nations Development Programme", "Reserve Bank of India", "World Bank"],
+    c: 1,
+  },
+  //39
+  {
+    q: "In which year did the Government of India set-up the second Commission on Centre State Relations?",
+    a: ["2011", "2007", "2009", "2006"],
+    c: 2,
+  },
+  //40
+  {
+    q: "Narayana Guru, a social reformer from Kerala, propagated which key principle?",
+    a: ["'Service to man is service to God'", "'Self-rule is my birthright'", "'One God, One Caste, One Religion for Mankind'", "'Back to the Vedas'"],
+    c: 3,
+  },
+  //41
+  {
+    q: "Select the most appropriate meaning of the given proverb/idiom: A stitch in time saves nine.",
+    a: [
+      "Solving a problem early prevents it from getting worse.",
+      "Delaying problems will solve them naturally.",
+      "It is better to avoid taking quick action.",
+      "Fixing one issue can create nine more."
+    ],
+    c: 1,
+  },
+  //42
+  {
+    q: "Select the option that can be used as a one-word substitute for the underlined group of words in the given sentence. \n\nThe minister was sentenced for an act of 'deliberately damaging someone's reputationby false statements.'",
+    a: ["forgery","blasphemy","perjury","defamation"],
+    c: 4,
+  },
+  //43
+    {
+    q: "Select the option that can be used as a one-word substitute for the underlined group of words in the given sentence.: The minister was sentenced for an act of deliberately damaging someone's reputationby false statements.",
+    a: ["Fools rush in where angels fear to tread","A rolling stone gathers no moss","Never judge a book by its cover","Silence is golden"],
+    c: 4,
+  },
+   //44
+  {
+    q: "Identify the option that rectifies the given sentence to make it grammatically correct. : Himanshu don’t understand the instructions clearly.",
+    a: ["Himanshu not understand the instructions clearly"," Himanshu doesn’t understands the instructions clearly.","Himanshu don’t understands the instructions clearly.","Himanshu doesn’t understand the instructions clearly."],
+    c: 4,
+  },
+  //45
+  {
+    q: "Select the most appropriate synonym of the given word.\n\nBrittle",
+    a: ["fragile", "durable", "flexible", "resilient"]  ,
+    c: 1,
+  },
+  //46
+  {
+    q: "Select the most appropriate option to fill in the blank.\n\nHe was convicted _______ theft and sent to prison.",
+    a: ["for", "of", "about", "with"],
+    c: 2,
+  },
+  //47
+  {
+    q: "Select the most appropriate option to fill in the blank.\n\nThe patient’s recovery depended heavily _______ following the doctor’s advice and maintaining a strict diet.",
+    a: ["on", "with", "in", "at"],
+    c: 1,
+  },
+  //48
+  {
+    q: "Select the option that expresses the given sentence in passive voice.The doctor checked his report yesterday",
+    a: ["The report was checked by the doctor yesterday.", " Yesterday was his report was checked by the doctor.", "His report yesterday was checked by the doctor", "The doctor yesterday checked his report."],
+    c: 3,
+  },
+  //49
+  {
+    q: "Select the option that will improve the underlined part of the given sentence.\n The athlete was confident 'for winning' the championship.",
+    a: ["for win", "to winning", "in winning", "about winning"],
+    c: 4,
+  },
+  //50
+  {
+    q: "Select the option that expresses the given sentence in future perfect continuous tense. :By 2026, she will have completed her PhD.",
+    a: ["By 2026, she will have completing her PhD for several months.","By 2026, she will have been completing her PhD for several months.","By 2026, she will be completing her PhD for several months.","By 2026, she will complete her PhD for several months."],
+    c: 2,
+  },
+  //51
+  {
+    q: "One of the four underlined words in the given sentence is incorrectly spelt. Identify the INCORRECTLY spelt word.\n\nHuman resources and institutional data; complience; food testing is also analysed in the State Food Safety Index.",
+    a: ["anelysed", "instituitional", "compliance", "resourses"],
+    c: 3,
+  },
+  //52
+  {
+    q: "Select the option that expresses the given sentence in direct speech.\n\nShe asked eagerly if the package had arrived..",
+    a: [
+      "She asked eagerly, “Is the package arrived?”",
+      "She asked eagerly, “Has the package arrived?”",
+      "She asked eagerly that “Whether the package arrived?”",
+      "She asked eagerly that “If the package be arrived?”",],
+    c: 2,
+  },
+  //53
+  {
+    q: "One of the four highlighted words in the given sentence is grammatically incorrect. Select the option that rectifies the grammatical error.\n\nThe curious boy, exciting about the new adventure, packed his petite bag and wore his warm jacket before stepping out.",
+    a: ["excited", "warmly", "curiosity", "petition"],
+    c: 1,
+  },
+//54
+{
+    q: "Select the most appropriate option to fill in the blanks.\n\nAfter waiting for __ hour, the team received __ honest assessment of their project from the expert.",
+    a: ["a; an", "a; a", "an; an", "an; a"],
+    c: 3,
+  },
+//55
+{
+    q: "Sentences of a paragraph are given below in jumbled order. Arrange the sentences in the correct order to form a meaningful and coherent paragraph.\n\nP: These routes facilitated the exchange of goods, culture, and ideas between distant regions.\nQ: One of the most famous ancient trade networks was the Silk Road.\nR: Merchants carried silk, spices, precious metals, and philosophies across continents.\nS: It connected China with the Mediterranean through Central Asia.",
+    a: ["SQRP", "RSQP", "QSPR", "PQRS"],
+    c: 3,
+  },
+  //56
+  {
+    q: "Select the option that expresses the given sentence in direct speech.\n\nRajnish said that they were playing a match on Monday.",
+    a: [
+      'Rajnish said, "We had been playing a match on Monday."',
+      'Rajnish said, "We are playing matches on that day."',
+      'Rajnish said, "We were playing a match on Monday."',
+      'Rajnish said, "We are playing a match on Monday."'
+    ],
+    c: 3,
+  },
+  //57
+  {
+  q: "Select the option that expresses the given sentence in the future continuous form.\n\nThe team is travelling to Australia.",
+  a: [
+    "The team will have travelled to Australia.",
+    "The team would travel to Australia.",
+    "The team will be travelling to Australia.",
+    "The team will travel to Australia."
+  ],
+  c: 3,
+  },
+  //58
+  {
+    compression: "Organ transplantation is common. You might know someone your age who had a transplant. Take Jamie Fiske, for example. She was less than a year old when doctors gave her a new liver because she was born with a disease that stopped her liver from working. Today, after her transplant, she grew up healthy and strong. Stories like hers show how important organ transplants are. In the United States, about one in 330 people has received an organ transplant, and other Western countries have similar rates. Today, doctors transplant lungs, liver, kidneys, pancreas and bowel. People who receive an organ transplant live longer and enjoy a better quality of life. Organ recipients also spend less. Organ transplantation has four steps. Transplant teams ensure each step happens without problems. It begins with caring for the donor, meaning doctors keep the organs healthy with right medicines and care. The next step is organ retrieval, in which trained surgeons remove the organs from the donor. Next, the organs are stored until they are transplanted. During preservation, the organs must be kept healthy. Finally, surgeons replace a sick organ with a healthy one during transplantation.",
+    q: "What is the most suitable title for the passage?",
+    a: [
+      "Organ Transplant Rejection and Risks",
+      "The Ethics of Organ Donation",
+      "Understanding Organ Transplantation",
+      "The History of Transplant Surgery"
+    ],
+    c: 3,
+  },
+  //59
+  {
+    compression: "Organ transplantation is common. You might know someone your age who had a transplant. Take Jamie Fiske, for example. She was less than a year old when doctors gave her a new liver because she was born with a disease that stopped her liver from working. Today, after her transplant, she grew up healthy and strong. Stories like hers show how important organ transplants are. In the United States, about one in 330 people has received an organ transplant, and other Western countries have similar rates. Today, doctors transplant lungs, liver, kidneys, pancreas and bowel. People who receive an organ transplant live longer and enjoy a better quality of life. Organ recipients also spend less. Organ transplantation has four steps. Transplant teams ensure each step happens without problems. It begins with caring for the donor, meaning doctors keep the organs healthy with right medicines and care. The next step is organ retrieval, in which trained surgeons remove the organs from the donor. Next, the organs are stored until they are transplanted. During preservation, the organs must be kept healthy. Finally, surgeons replace a sick organ with a healthy one during transplantation.",
+    q: "According to the passage, which of the following statements is true?",
+    a: [
+      "The first step of transplantation involves keeping the donor's organs healthy.",
+      "Transplant recipients often have a lower quality of life.",
+      "Only heart and kidney transplants are performed today.",
+      "Organ transplantation is a rare medical procedure."
+    ],
+    c: 1,
+  },
+  //60
+  {
+    compression: "Organ transplantation is common. You might know someone your age who had a transplant. Take Jamie Fiske, for example. She was less than a year old when doctors gave her a new liver because she was born with a disease that stopped her liver from working. Today, after her transplant, she grew up healthy and strong. Stories like hers show how important organ transplants are. In the United States, about one in 330 people has received an organ transplant, and other Western countries have similar rates. Today, doctors transplant lungs, liver, kidneys, pancreas and bowel. People who receive an organ transplant live longer and enjoy a better quality of life. Organ recipients also spend less. Organ transplantation has four steps. Transplant teams ensure each step happens without problems. It begins with caring for the donor, meaning doctors keep the organs healthy with right medicines and care. The next step is organ retrieval, in which trained surgeons remove the organs from the donor. Next, the organs are stored until they are transplanted. During preservation, the organs must be kept healthy. Finally, surgeons replace a sick organ with a healthy one during transplantation.",
+    q: "Which real-world issue is most closely related to the passage?",
+    a: [
+      "The impact of climate change on global health",
+      "The debate over artificial intelligence in medical research",
+      "The increasing cost of cosmetic surgery procedures",
+      "The shortage of organ donors and the long waiting lists for transplants"
+    ],
+    c: 4,
+  },
+  //61
+  {
+    q: "ନିମ୍ନଲିଖିତ ପ୍ରଶ୍ନରେ ଦିଆଯାଇଥିବା ଚାରୋଟି ବିକଳ୍ପ ମଧ୍ୟରୁ ସେହି ବିକଳ୍ପକୁ ବାଛନ୍ତୁ, ଯାହା ପ୍ରଦତ୍ତ ରୂଢ଼ିର ଅର୍ଥକୁ ସର୍ବୋତ୍ତମ ଭାବରେ ପ୍ରକାଶ କରେ।\n\n'କାଠିକର ପାଠ'",
+    a: [
+      "ସୁବିଧାରେ ଘର ଚଳେଇବା",
+      "କଷ୍ଟ ସହି ନପାରିବା",
+      "କଷ୍ଟ ସାଧ୍ୟ",
+      "ଅସୁବିଧାରେ ରହି କାମ କରିବା"
+    ],
+    c: 3,
+  },
+  //62
+  {
+    q: "ନିମ୍ନଲିଖିତ ବାକ୍ୟକୁ ଏକ ପଦରେ ପରିବର୍ତ୍ତନ କର ।\n\n\"ଆଗରେ ଜନ୍ମିଅଛି ଯେ\" -",
+    a: ["ସମଜ", "ଜନିତ", "ଅଗ୍ରଜ", "ତନୁଜ"],
+    c: 3,
+  },
+  //63
+  {
+    q: "କିଛି ଶବ୍ଦ ଭୁଲ ଲେଖା ହୋଇଥିବା ଏକ ବାକ୍ୟ ଦିଆଯାଇଛି। ବିକଳ୍ପଗୁଡ଼ିକରୁ ଗୋଟିଏ ବାଛନ୍ତୁ, ଯେଉଁଥିରେ ବନାନ ତ୍ରୁଟି ନାହିଁ।\n\nମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ପୁରା ନାମ ହେଉଛି ମୋହନଦାଶ କରମଚାନ୍ଦ ଗାନ୍ଧୀ।",
+    a: [
+      "ମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ପୁରା ନାମ ହେଉଛି ମୋହନଦାଶ କରମଚାନ୍ଦ ଗାନ୍ଧୀ।",
+      "ମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ପୁରା ନାମ ହେଉଛି ମୋହନଦାସ କରମଚନ୍ଦ୍ର ଗାନ୍ଧୀ।",
+      "ମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ପୁରା ନାମ ହେଉଛି ମୋହନଦାସ କରମଚାନ୍ଦ ଗାନ୍ଧୀ।",
+      "ମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ପୁରା ନାମ ହେଉଛି ମହନ ଦାସ କରମଚନ୍ଦ ଗାନ୍ଧୀ।"
+    ],
+    c: 3,
+  },
+  //64
+  {
+    q: "ଦିଆଯାଇଥିବା ଇଂରାଜୀ ବାକ୍ୟକୁ ଓଡ଼ିଆରେ ଅନୁବାଦ କର।\n\nStudents play cricket in the school ground every Sunday morning.",
+    a: [
+      "ଛାତ୍ରମାନେ ପ୍ରତି ରବିବାର ସକାଳେ ସ୍କୁଲ ପଡ଼ିଆରେ କ୍ରିକେଟ ଖେଳନ୍ତି।",
+      "ଛାତ୍ରମାନେ ପ୍ରତି ରବିବାର ସକାଳେ କ୍ରିକେଟ ଖେଳୁଛନ୍ତି ।",
+      "ଛାତ୍ରମାନେ ପ୍ରତି ରବିବାରରେ କ୍ରିକେଟ ଖେଳିବେ।",
+      "ଛାତ୍ରମାନେ ପ୍ରତି ରବିବାର ସକାଳେ ସ୍କୁଲ ପଡ଼ିଆରେ କ୍ରିକେଟ ଖେଳୁଥିଲେ।"
+    ],
+    c: 1,
+  },
+  //65
+  {
+    q: "ଦିଆଯାଇଥିବା ଇଂରାଜୀ ବାକ୍ୟକୁ ଓଡ଼ିଆରେ ଅନୁବାଦ କର।\n\nWater is precious and we should conserve it.",
+    a: [
+      "ଜଳ ମୂଲ୍ୟବାନ ଏବଂ ଆମେ ଏହାକୁ ସଂରକ୍ଷଣ କରିବୁ।",
+      "ଜଳ ମୂଲ୍ୟବାନ ଏବଂ ଏହାକୁ ସଂରକ୍ଷଣ କରାଯାଉଛି।",
+      "ଜଳ ମୂଲ୍ୟବାନ ଏବଂ ଆମେ ଏହାକୁ ସଂରକ୍ଷଣ କରୁ।",
+      "ଜଳ ମୂଲ୍ୟବାନ ଏବଂ ଆମେ ଏହାକୁ ସଂରକ୍ଷଣ କରିବା ଉଚିତ।"
+    ],
+    c: 4,
+  },
+  //66
+  {
+    q: "“ମୃତ୍ତିକା” ର ତଦ୍ଭବ ଶବ୍ଦ କ’ଣ?",
+    a: ["ମାଟି", "ବିଲ", "କ୍ଷେତ", "ଘର"],
+    c: 1,
+  },
+  //67
+  {
+    q: "ନିମ୍ନରେ ଦିଆଯାଇଥିବା ବାକ୍ୟଗୁଡ଼ିକୁ କ୍ରମରେ ସଜାଇ ଏକ ଅର୍ଥପୂର୍ଣ୍ଣ ଅନୁଚ୍ଛେଦ ଗଠନ କର ଏବଂ ସଠିକ୍ କ୍ରମଟିକୁ ବାଛ।\n\n(କ) ଏହା ଫଳରେ ମୃତ୍ତିକା କ୍ଷୟ ହୁଏ ଏବଂ ପରିବେଶର ଭାରସାମ୍ୟ ନଷ୍ଟ ହୁଏ।\n(ଖ) ଜଙ୍ଗଲ ଆମର ଏକ ମୂଲ୍ୟବାନ ଜାତୀୟ ସମ୍ପଦ।\n(ଗ) କିନ୍ତୁ କିଛି ଲୋଭୀ ଲୋକ ନିଜର ସ୍ଵାର୍ଥ ପାଇଁ ଏହାକୁ ନଷ୍ଟ କରୁଛନ୍ତି।\n(ଘ) ଏହା ଆମକୁ କାଠ, ଫଳ, ଔଷଧ ଆଦି ଯୋଗାଇଥାଏ।",
+    a: [
+      "(ଖ), (ଘ), (ଗ), (କ)",
+      "(ଘ), (ଖ), (ଗ), (କ)",
+      "(ଖ), (କ), (ଘ), (ଗ)",
+      "(ଖ), (ଗ), (ଘ), (କ)"
+    ],
+    c: 1,
+  },
+  //68
+  {
+    q: "ନିମ୍ନଲିଖିତ ପ୍ରଶ୍ନରେ ଦିଆଯାଇଥିବା ଚାରୋଟି ବିକଳ୍ପ ମଧ୍ୟରୁ ସେହି ବିକଳ୍ପକୁ ବାଛନ୍ତୁ, ଯାହା ପ୍ରଦତ୍ତ ରୂଢ଼ିର ଅର୍ଥକୁ ସର୍ବୋତ୍ତମ ଭାବରେ ପ୍ରକାଶ କରେ।\n\n'ଅଳ୍ପ ବିଦ୍ୟା ଭୟଙ୍କରୀ'",
+    a: [
+      "କମ୍ ପାଠ ପଢ଼ିବା ଭଲ",
+      "ବେଶୀ ପାଠ ପଢ଼ିବା ଭଲ ନୁହେଁ",
+      "ଅଳ୍ପ ଜ୍ଞାନଯୋଗୁଁ ଅପଦସ୍ତ ହେବା",
+      "ଅପାଠୁଆ"
+    ],
+    c: 3,
+  },
+  //69
+  {
+    q: "ଦିଆଯାଇଥିବା ଓଡ଼ିଆ ବାକ୍ୟର ସବୁଠାରୁ ଉପଯୁକ୍ତ ଇଂରାଜୀ ଅନୁବାଦ ବିକଳ୍ପ ବାଛନ୍ତୁ।\n\n 'ଓଡ଼ିଶାରେ ରାକ୍ଷୀ ପୂର୍ଣ୍ଣିମା ଦିନ ମହିଳାମାନଙ୍କୁ ‘ସୁଭଦ୍ରା’ ଯୋଜନାର ତୃତୀୟ କିସ୍ତି ମିଳିଛି।'",
+    a: [
+      "On Rakshi Purnima, women in Odisha are getting the third installment of the 'Subhadra' scheme.",
+      "On Rakshi Purnima, women will get the third installment of the 'Subhadra' scheme.",
+      "On Rakshi Purnima, women may get the third installment of the 'Subhadra' scheme.",
+      "On the occasion of Rakshi Purnima, women in Odisha have got the third installment of the 'Subhadra' scheme."
+    ],
+    c: 4,
+  },
+  //70
+  {
+    q: "ନିମ୍ନଲିଖିତ A ରେ ପ୍ରଦତ୍ତ ଶବ୍ଦଗୁଡ଼ିକୁ Bରେ ପ୍ରଦତ୍ତ ଏହାର ସମାନାର୍ଥବୋଧକ ଶବ୍ଦଗୁଡ଼ିକ ସହ ମିଳାଅ ।\n\n A (ଶବ୍ଦ) B (ସମାନାର୍ଥବୋଧକ ଶବ୍ଦ)\n\n(1) ସର (P) ସକାଳ\n(2) ଚାପ (Q) ପୋଖରୀ\n(3) ନଳିନୀ (R) ଧନୁ\n(4) ପ୍ରାଚୀ (S) କାଣ୍ଡ",
+    a: [
+      "2-P, 3-Q, 4-R, 1-S",
+      "3-P, 4-Q, 1-R, 2-S",
+      "4-P, 1-Q, 2-R, 3-S",
+      "1-P, 2-Q, 3-R, 4-S"
+    ],
+    c: 3,
+  },
+  //71
+  {
+    q: "ନିମ୍ନରେ ଦିଆଯାଇଥିବା ବିକଳ୍ପ ମଧ୍ୟରୁ ଉପଯୁକ୍ତ ବିପରୀତ ଶବ୍ଦ ଚୟନ କର।\n\nଗ୍ରହଣ",
+    a: [
+      "ଅନୁମତି",
+      "ବର୍ଜନ",
+      "ସ୍ୱୀକୃତି",
+      "ଭଲ"
+    ],
+    c: 2,
+  },
+  //72
+  {
+    q: "ଦିଆଯାଇଥିବା ଓଡ଼ିଆ ବାକ୍ୟକୁ ଇଂରାଜୀରେ ଅନୁବାଦ କର।\n\nସେ ଏହି କାମ 10 ବର୍ଷ ଧରି କରିଆସୁଛି।",
+    a: [
+      "He have been doing this work for 10 years .",
+      "He has been doing this work for 10 years.",
+      "He was doing this work for 10 years.",
+      "He is doing this work for 10 years ."
+    ],
+    c: 2,
+  },
+  //73
+  {
+    q: "ଏକ ଉପଯୁକ୍ତ ବିକଳ୍ପ ସାହାଯ୍ୟରେ ଶୂନ୍ୟସ୍ଥାନ ପୂରଣ କରନ୍ତୁ।\n\nଗୋପାଳ ର ଭିଡିଓ ଏକ ଚର୍ଚ୍ଚା ର ବିଷୟ ______ ।",
+    a: [
+      "ହୋଇପଡିଛି",
+      "କରିଛି",
+      "ପଢିଛି",
+      "ହେବି"
+    ],
+    c: 1,
+  },
+  //74
+  {
+    q: "ନିମ୍ନଲିଖିତ ବାକ୍ୟରେ ଥିବା ଭୁଲ୍ ଅଂଶଟିକୁ ଚିହ୍ନଟ କର ।\n\n\"ଖବରକାଗଜ ମାଲିକ ବିରୁଧରେ ମାମଲା ଦାୟର ହୋଇଛି । \"",
+    a: [
+      "ମାମଲା",
+      "ଦାୟର",
+      "ବିରୁଧରେ",
+      "ମାଲିକ"
+    ],
+    c: 3,
+  },
+  //75
+  {
+    q: "ଅବ୍ୟୟ ପଦ ବ୍ୟବହାର କରି ବାକ୍ୟଟିକୁ ସମ୍ପୂର୍ଣ୍ଣ କର ।\n\n\"ସେମାନେ ସାହାଯ୍ୟ କଲେ, ______ ଆମେ କାମ ସମାପ୍ତ କରିଲୁ।\"",
+    a: [
+      "ତେଣୁ",
+      "ଏବଂ",
+      "କିମ୍ବା",
+      "ଅଥବା"
+    ],
+    c: 1,
+  },
+  //76
+  { 
+    compression: "ଓଡ଼ିଶାର ହରେକୃଷ୍ଣ ମହତାବ ଏକାଧାରାରେ ଜଣେ ପ୍ରମୁଖ ସ୍ଵାଧୀନତା ସଂଗ୍ରାମୀ, ରାଜନେତା ଓଡ଼ିଶାର ଜନପ୍ରିୟ ନେତା ଥିଲେ। ସେ 'ଉତ୍କଳ କେଶରୀ' ନାମରେ ବେଶ୍ ପରିଚିତ। ତାଙ୍କୁ \"ଆଧୁନିକ ଓଡ଼ିଶାର ସ୍ଥପତି\" ଭାବରେ ସମ୍ମାନିତ କରାଯାଏ। ମହତାବ ୧୮୯୯ ମସିହା ନଭେମ୍ବର ୨୧ ତାରିଖରେ ଭଦ୍ରକ ଜିଲ୍ଲାର ଆଗରପଡ଼ା ଗ୍ରାମରେ ଜନ୍ମଗ୍ରହଣ କରିଥିଲେ। ସେ ଭାରତର ସ୍ଵାଧୀନତା ସଂଗ୍ରାମରେ ଓ ପରେ ଓଡ଼ିଶାକୁ ଏକ ଆଧୁନିକ ରାଜ୍ୟ ଭାବରେ ଗଠନ ଏବଂ ବିକାଶ କରିବାରେ ପ୍ରମୁଖ ଭୂମିକା ଗ୍ରହଣ କରିଥିଲେ। ମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ଦ୍ଵାରା ଅନୁପ୍ରାଣିତ ହୋଇ, ମହତାବ ୧୯୨୧ ମସିହାରେ ଅସହଯୋଗ ଆନ୍ଦୋଳନରେ ଯୋଗଦେଇଥିଲେ ଏବଂ ଆଇନ ଅମାନ୍ୟ ଆନ୍ଦୋଳନ ଏବଂ ଭାରତ ଛାଡ଼ ଆନ୍ଦୋଳନରେ ସକ୍ରିୟ ଥିଲେ। ତାଙ୍କର ଜାତୀୟତାବାଦୀ କାର୍ଯ୍ୟକଳାପ ଯୋଗୁଁ ତାଙ୍କୁ ବ୍ରିଟିଶ କର୍ତ୍ତୃପକ୍ଷ ଅନେକ ଥର ଜେଲ୍ ପଠାଇଥିଲେ। ମହତାବ ୧୯୪୬ ରୁ ୧୯୫୦ ମସିହା ପର୍ଯ୍ୟନ୍ତ ଓଡ଼ିଶାର ପ୍ରଥମ ମୁଖ୍ୟମନ୍ତ୍ରୀ ଭାବେ ଦାୟିତ୍ଵ ତୁଲାଇଥିଲେ ଏବଂ ପରେ ୧୯୫୬ ରୁ ୧୯୬୧ ପର୍ଯ୍ୟନ୍ତ ମୁଖ୍ୟମନ୍ତ୍ରୀ କାର୍ଯ୍ୟ କରିଥିଲେ। ତାଙ୍କ କାର୍ଯ୍ୟକାଳ ମଧ୍ୟରେ, ସେ ଶିକ୍ଷା, ଶିଳ୍ପ ଏବଂ କୃଷି କ୍ଷେତ୍ରର ବିକାଶରେ ଅନେକ ସଂସ୍କାର ଆଣିଥିଲେ। ତାଙ୍କର ଏକ ଗୁରୁତ୍ଵପୂର୍ଣ୍ଣ ସଫଳତା ଥିଲା ପ୍ରଦେଶର ବିଭିନ୍ନ ଗଡ଼ଜାତ ରାଜ୍ୟକୁ ମିଶ୍ରଣ କରି ଏକ ଅଖଣ୍ଡ ଓଡ଼ିଶା ଗଠନ କରିବା। ବିଶ୍ଵର ଦୀର୍ଘତମ ନଦୀ ବନ୍ଧ ମଧ୍ୟରୁ ଗୋଟିଏ 'ହୀରାକୁଦ ବନ୍ଧ' ନିର୍ମାଣରେ ତାଙ୍କର ଯଥେଷ୍ଟ ଅବଦାନ ରହିଛି, ଯାହା ଓଡ଼ିଶାର କୃଷି ଓ ବିଦ୍ୟୁତ୍ ବିକାଶରେ ଏକ ମାଇଲଖୁଣ୍ଟ। ରାଜନୀତି ବ୍ୟତୀତ, ମହତାବ ଜଣେ ପ୍ରସିଦ୍ଧ ଲେଖକ ଓ ଐତିହାସିକ ଥିଲେ। ସେ 'ପ୍ରଜାତନ୍ତ୍ର' ନାମକ ଏକ ସାପ୍ତାହିକ ପତ୍ରିକା ଆରମ୍ଭ କରିଥିଲେ, ଯାହା ପରେ ଏକ ଦୈନିକ ଖବରକାଗଜରେ ପରିଣତ ହୋଇଗଲା। ତାଙ୍କର ଉଲ୍ଲେଖନୀୟ ରଚନା ମଧ୍ୟରେ 'ଓଡ଼ିଶା ଇତିହାସ' ଅନ୍ତର୍ଭୁକ୍ତ। ଓଡ଼ିଆ ସାହିତ୍ୟରେ ଅବଦାନ ପାଇଁ ତାଙ୍କୁ ୧୯୮୩ ମସିହାରେ କେନ୍ଦ୍ର ସାହିତ୍ୟ ଏକାଡେମୀ ପୁରସ୍କାର ପ୍ରଦାନ କରାଯାଇଥିଲା। ହରେକୃଷ୍ଣ ମହତାବଙ୍କ ଦୃଷ୍ଟିକୋଣ, ନେତୃତ୍ଵ ଏବଂ ଓଡ଼ିଶାର ପ୍ରଗତି ପ୍ରତି ତାଙ୍କ ସମର୍ପଣ ତାଙ୍କୁ ଚିରସ୍ମରଣୀୟ କରି ରଖିଛି। ସେ ଜାନୁଆରୀ ୨, ୧୯୮୭ ରେ ଇହଧାମ ତ୍ୟାଗ କରିଥିଲେ ସତ, କିନ୍ତୁ ଓଡ଼ିଶା ଇତିହାସରେ ସେ ଜଣେ ଯୁଗପୁରୁଷ ଓ ଦୂରଦର୍ଶୀ ନେତା ଭାବରେ ତାଙ୍କୁ ସଦାସର୍ବଦା ସ୍ମରଣ କରାଯିବ।",
+    q: "ହରେକୃଷ୍ଣ ମହତାବ ସାଧାରଣତଃ କେଉଁ ନାମରେ ଜଣାଶୁଣା ?",
+    a: [
+      "ଓଡ଼ିଶାର ଲୌହ ପୁରୁଷ",
+      "ଭଦ୍ରକର ଚାଣକ୍ୟ",
+      "ଆଧୁନିକ ଓଡ଼ିଶାର ସ୍ଥପତି",
+      "ଆଧୁନିକ ଓଡ଼ିଶାର ଜନକ"
+    ],
+    c: 3,
+  },
+  //77
+  {
+    compression: "ଓଡ଼ିଶାର ହରେକୃଷ୍ଣ ମହତାବ ଏକାଧାରାରେ ଜଣେ ପ୍ରମୁଖ ସ୍ଵାଧୀନତା ସଂଗ୍ରାମୀ, ରାଜନେତା ଓଡ଼ିଶାର ଜନପ୍ରିୟ ନେତା ଥିଲେ। ସେ 'ଉତ୍କଳ କେଶରୀ' ନାମରେ ବେଶ୍ ପରିଚିତ। ତାଙ୍କୁ \"ଆଧୁନିକ ଓଡ଼ିଶାର ସ୍ଥପତି\" ଭାବରେ ସମ୍ମାନିତ କରାଯାଏ। ମହତାବ ୧୮୯୯ ମସିହା ନଭେମ୍ବର ୨୧ ତାରିଖରେ ଭଦ୍ରକ ଜିଲ୍ଲାର ଆଗରପଡ଼ା ଗ୍ରାମରେ ଜନ୍ମଗ୍ରହଣ କରିଥିଲେ। ସେ ଭାରତର ସ୍ଵାଧୀନତା ସଂଗ୍ରାମରେ ଓ ପରେ ଓଡ଼ିଶାକୁ ଏକ ଆଧୁନିକ ରାଜ୍ୟ ଭାବରେ ଗଠନ ଏବଂ ବିକାଶ କରିବାରେ ପ୍ରମୁଖ ଭୂମିକା ଗ୍ରହଣ କରିଥିଲେ। ମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ଦ୍ଵାରା ଅନୁପ୍ରାଣିତ ହୋଇ, ମହତାବ ୧୯୨୧ ମସିହାରେ ଅସହଯୋଗ ଆନ୍ଦୋଳନରେ ଯୋଗଦେଇଥିଲେ ଏବଂ ଆଇନ ଅମାନ୍ୟ ଆନ୍ଦୋଳନ ଏବଂ ଭାରତ ଛାଡ଼ ଆନ୍ଦୋଳନରେ ସକ୍ରିୟ ଥିଲେ। ତାଙ୍କର ଜାତୀୟତାବାଦୀ କାର୍ଯ୍ୟକଳାପ ଯୋଗୁଁ ତାଙ୍କୁ ବ୍ରିଟିଶ କର୍ତ୍ତୃପକ୍ଷ ଅନେକ ଥର ଜେଲ୍ ପଠାଇଥିଲେ। ମହତାବ ୧୯୪୬ ରୁ ୧୯୫୦ ମସିହା ପର୍ଯ୍ୟନ୍ତ ଓଡ଼ିଶାର ପ୍ରଥମ ମୁଖ୍ୟମନ୍ତ୍ରୀ ଭାବେ ଦାୟିତ୍ଵ ତୁଲାଇଥିଲେ ଏବଂ ପରେ ୧୯୫୬ ରୁ ୧୯୬୧ ପର୍ଯ୍ୟନ୍ତ ମୁଖ୍ୟମନ୍ତ୍ରୀ କାର୍ଯ୍ୟ କରିଥିଲେ। ତାଙ୍କ କାର୍ଯ୍ୟକାଳ ମଧ୍ୟରେ, ସେ ଶିକ୍ଷା, ଶିଳ୍ପ ଏବଂ କୃଷି କ୍ଷେତ୍ରର ବିକାଶରେ ଅନେକ ସଂସ୍କାର ଆଣିଥିଲେ। ତାଙ୍କର ଏକ ଗୁରୁତ୍ଵପୂର୍ଣ୍ଣ ସଫଳତା ଥିଲା ପ୍ରଦେଶର ବିଭିନ୍ନ ଗଡ଼ଜାତ ରାଜ୍ୟକୁ ମିଶ୍ରଣ କରି ଏକ ଅଖଣ୍ଡ ଓଡ଼ିଶା ଗଠନ କରିବା। ବିଶ୍ଵର ଦୀର୍ଘତମ ନଦୀ ବନ୍ଧ ମଧ୍ୟରୁ ଗୋଟିଏ 'ହୀରାକୁଦ ବନ୍ଧ' ନିର୍ମାଣରେ ତାଙ୍କର ଯଥେଷ୍ଟ ଅବଦାନ ରହିଛି, ଯାହା ଓଡ଼ିଶାର କୃଷି ଓ ବିଦ୍ୟୁତ୍ ବିକାଶରେ ଏକ ମାଇଲଖୁଣ୍ଟ। ରାଜନୀତି ବ୍ୟତୀତ, ମହତାବ ଜଣେ ପ୍ରସିଦ୍ଧ ଲେଖକ ଓ ଐତିହାସିକ ଥିଲେ। ସେ 'ପ୍ରଜାତନ୍ତ୍ର' ନାମକ ଏକ ସାପ୍ତାହିକ ପତ୍ରିକା ଆରମ୍ଭ କରିଥିଲେ, ଯାହା ପରେ ଏକ ଦୈନିକ ଖବରକାଗଜରେ ପରିଣତ ହୋଇଗଲା। ତାଙ୍କର ଉଲ୍ଲେଖନୀୟ ରଚନା ମଧ୍ୟରେ 'ଓଡ଼ିଶା ଇତିହାସ' ଅନ୍ତର୍ଭୁକ୍ତ। ଓଡ଼ିଆ ସାହିତ୍ୟରେ ଅବଦାନ ପାଇଁ ତାଙ୍କୁ ୧୯୮୩ ମସିହାରେ କେନ୍ଦ୍ର ସାହିତ୍ୟ ଏକାଡେମୀ ପୁରସ୍କାର ପ୍ରଦାନ କରାଯାଇଥିଲା। ହରେକୃଷ୍ଣ ମହତାବଙ୍କ ଦୃଷ୍ଟିକୋଣ, ନେତୃତ୍ଵ ଏବଂ ଓଡ଼ିଶାର ପ୍ରଗତି ପ୍ରତି ତାଙ୍କ ସମର୍ପଣ ତାଙ୍କୁ ଚିରସ୍ମରଣୀୟ କରି ରଖିଛି। ସେ ଜାନୁଆରୀ ୨, ୧୯୮୭ ରେ ଇହଧାମ ତ୍ୟାଗ କରିଥିଲେ ସତ, କିନ୍ତୁ ଓଡ଼ିଶା ଇତିହାସରେ ସେ ଜଣେ ଯୁଗପୁରୁଷ ଓ ଦୂରଦର୍ଶୀ ନେତା ଭାବରେ ତାଙ୍କୁ ସଦାସର୍ବଦା ସ୍ମରଣ କରାଯିବ।",
+    q: "ହରେକୃଷ୍ଣ ମହତାବଙ୍କ ଜନ୍ମ କେବେ ହୋଇଥିଲା ?",
+    a: ["1899","1889","1908","1906"],
+    c: 1,
+  },
+  //78
+  {
+    compression: " ନିମ୍ନଲିଖିତ ଅନୁଚ୍ଛେଦର ବିଷୟବସ୍ତୁକୁଭଲ ଭାବରେ ପଢ଼ନ୍ତୁ। ତା’ତଳେ ପ୍ରଦତ୍ତ ପ୍ରତ୍ୟେକ ପ୍ରଶ୍ନର ଚାରୋଟିସମ୍ଭାବିତ ଉତ୍ତର ମଧ୍ୟରୁସଠିକ ଉତ୍ତରକୁଚୟନ କରନ୍ତୁ। \n\nଓଡ଼ିଶାର ହରେକୃଷ୍ଣ ମହତାବ ଏକାଧାରାରେ ଜଣେ ପ୍ରମୁଖ ସ୍ଵାଧୀନତା ସଂଗ୍ରାମୀ, ରାଜନେତା ଓଡ଼ିଶାର ଜନପ୍ରିୟ ନେତା ଥିଲେ। ସେ 'ଉତ୍କଳ କେଶରୀ' ନାମରେ ବେଶ୍ ପରିଚିତ। ତାଙ୍କୁ \"ଆଧୁନିକ ଓଡ଼ିଶାର ସ୍ଥପତି\" ଭାବରେ ସମ୍ମାନିତ କରାଯାଏ। ମହତାବ ୧୮୯୯ ମସିହା ନଭେମ୍ବର ୨୧ ତାରିଖରେ ଭଦ୍ରକ ଜିଲ୍ଲାର ଆଗରପଡ଼ା ଗ୍ରାମରେ ଜନ୍ମଗ୍ରହଣ କରିଥିଲେ। ସେ ଭାରତର ସ୍ଵାଧୀନତା ସଂଗ୍ରାମରେ ଓ ପରେ ଓଡ଼ିଶାକୁ ଏକ ଆଧୁନିକ ରାଜ୍ୟ ଭାବରେ ଗଠନ ଏବଂ ବିକାଶ କରିବାରେ ପ୍ରମୁଖ ଭୂମିକା ଗ୍ରହଣ କରିଥିଲେ। ମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ଦ୍ଵାରା ଅନୁପ୍ରାଣିତ ହୋଇ, ମହତାବ ୧୯୨୧ ମସିହାରେ ଅସହଯୋଗ ଆନ୍ଦୋଳନରେ ଯୋଗଦେଇଥିଲେ ଏବଂ ଆଇନ ଅମାନ୍ୟ ଆନ୍ଦୋଳନ ଏବଂ ଭାରତ ଛାଡ଼ ଆନ୍ଦୋଳନରେ ସକ୍ରିୟ ଥିଲେ। ତାଙ୍କର ଜାତୀୟତାବାଦୀ କାର୍ଯ୍ୟକଳାପ ଯୋଗୁଁ ତାଙ୍କୁ ବ୍ରିଟିଶ କର୍ତ୍ତୃପକ୍ଷ ଅନେକ ଥର ଜେଲ୍ ପଠାଇଥିଲେ। ମହତାବ ୧୯୪୬ ରୁ ୧୯୫୦ ମସିହା ପର୍ଯ୍ୟନ୍ତ ଓଡ଼ିଶାର ପ୍ରଥମ ମୁଖ୍ୟମନ୍ତ୍ରୀ ଭାବେ ଦାୟିତ୍ଵ ତୁଲାଇଥିଲେ ଏବଂ ପରେ ୧୯୫୬ ରୁ ୧୯୬୧ ପର୍ଯ୍ୟନ୍ତ ମୁଖ୍ୟମନ୍ତ୍ରୀ କାର୍ଯ୍ୟ କରିଥିଲେ। ତାଙ୍କ କାର୍ଯ୍ୟକାଳ ମଧ୍ୟରେ, ସେ ଶିକ୍ଷା, ଶିଳ୍ପ ଏବଂ କୃଷି କ୍ଷେତ୍ରର ବିକାଶରେ ଅନେକ ସଂସ୍କାର ଆଣିଥିଲେ। ତାଙ୍କର ଏକ ଗୁରୁତ୍ଵପୂର୍ଣ୍ଣ ସଫଳତା ଥିଲା ପ୍ରଦେଶର ବିଭିନ୍ନ ଗଡ଼ଜାତ ରାଜ୍ୟକୁ ମିଶ୍ରଣ କରି ଏକ ଅଖଣ୍ଡ ଓଡ଼ିଶା ଗଠନ କରିବା। ବିଶ୍ଵର ଦୀର୍ଘତମ ନଦୀ ବନ୍ଧ ମଧ୍ୟରୁ ଗୋଟିଏ 'ହୀରାକୁଦ ବନ୍ଧ' ନିର୍ମାଣରେ ତାଙ୍କର ଯଥେଷ୍ଟ ଅବଦାନ ରହିଛି, ଯାହା ଓଡ଼ିଶାର କୃଷି ଓ ବିଦ୍ୟୁତ୍ ବିକାଶରେ ଏକ ମାଇଲଖୁଣ୍ଟ। ରାଜନୀତି ବ୍ୟତୀତ, ମହତାବ ଜଣେ ପ୍ରସିଦ୍ଧ ଲେଖକ ଓ ଐତିହାସିକ ଥିଲେ। ସେ 'ପ୍ରଜାତନ୍ତ୍ର' ନାମକ ଏକ ସାପ୍ତାହିକ ପତ୍ରିକା ଆରମ୍ଭ କରିଥିଲେ, ଯାହା ପରେ ଏକ ଦୈନିକ ଖବରକାଗଜରେ ପରିଣତ ହୋଇଗଲା। ତାଙ୍କର ଉଲ୍ଲେଖନୀୟ ରଚନା ମଧ୍ୟରେ 'ଓଡ଼ିଶା ଇତିହାସ' ଅନ୍ତର୍ଭୁକ୍ତ। ଓଡ଼ିଆ ସାହିତ୍ୟରେ ଅବଦାନ ପାଇଁ ତାଙ୍କୁ ୧୯୮୩ ମସିହାରେ କେନ୍ଦ୍ର ସାହିତ୍ୟ ଏକାଡେମୀ ପୁରସ୍କାର ପ୍ରଦାନ କରାଯାଇଥିଲା। ହରେକୃଷ୍ଣ ମହତାବଙ୍କ ଦୃଷ୍ଟିକୋଣ, ନେତୃତ୍ଵ ଏବଂ ଓଡ଼ିଶାର ପ୍ରଗତି ପ୍ରତି ତାଙ୍କ ସମର୍ପଣ ତାଙ୍କୁ ଚିରସ୍ମରଣୀୟ କରି ରଖିଛି। ସେ ଜାନୁଆରୀ ୨, ୧୯୮୭ ରେ ଇହଧାମ ତ୍ୟାଗ କରିଥିଲେ ସତ, କିନ୍ତୁ ଓଡ଼ିଶା ଇତିହାସରେ ସେ ଜଣେ ଯୁଗପୁରୁଷ ଓ ଦୂରଦର୍ଶୀ ନେତା ଭାବରେ ତାଙ୍କୁ ସଦାସର୍ବଦା ସ୍ମରଣ କରାଯିବ।",
+    q: "ସେ କେଉଁ ପ୍ରମୁଖ ନଦୀବନ୍ଧ ପ୍ରକଳ୍ପ ନିର୍ମାଣରେ ସାହାଯ୍ୟ କରିଥିଲେ ?",
+    a: [
+      "ରେଙ୍ଗାଲି ନଦୀବନ୍ଧ",
+      "ବାଲିମେଲା ନଦୀବନ୍ଧ",
+      "ଇନ୍ଦ୍ରାବତୀ ନଦୀବନ୍ଧ",
+      "ହୀରାକୁଦ ନଦୀବନ୍ଧ"
+    ],
+    c: 4,
+  },
+  //79
+  {
+    compression: "ଓଡ଼ିଶାର ହରେକୃଷ୍ଣ ମହତାବ ଏକାଧାରାରେ ଜଣେ ପ୍ରମୁଖ ସ୍ଵାଧୀନତା ସଂଗ୍ରାମୀ, ରାଜନେତା ଓଡ଼ିଶାର ଜନପ୍ରିୟ ନେତା ଥିଲେ। ସେ 'ଉତ୍କଳ କେଶରୀ' ନାମରେ ବେଶ୍ ପରିଚିତ। ତାଙ୍କୁ \"ଆଧୁନିକ ଓଡ଼ିଶାର ସ୍ଥପତି\" ଭାବରେ ସମ୍ମାନିତ କରାଯାଏ। ମହତାବ ୧୮୯୯ ମସିହା ନଭେମ୍ବର ୨୧ ତାରିଖରେ ଭଦ୍ରକ ଜିଲ୍ଲାର ଆଗରପଡ଼ା ଗ୍ରାମରେ ଜନ୍ମଗ୍ରହଣ କରିଥିଲେ। ସେ ଭାରତର ସ୍ଵାଧୀନତା ସଂଗ୍ରାମରେ ଓ ପରେ ଓଡ଼ିଶାକୁ ଏକ ଆଧୁନିକ ରାଜ୍ୟ ଭାବରେ ଗଠନ ଏବଂ ବିକାଶ କରିବାରେ ପ୍ରମୁଖ ଭୂମିକା ଗ୍ରହଣ କରିଥିଲେ। ମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ଦ୍ଵାରା ଅନୁପ୍ରାଣିତ ହୋଇ, ମହତାବ ୧୯୨୧ ମସିହାରେ ଅସହଯୋଗ ଆନ୍ଦୋଳନରେ ଯୋଗଦେଇଥିଲେ ଏବଂ ଆଇନ ଅମାନ୍ୟ ଆନ୍ଦୋଳନ ଏବଂ ଭାରତ ଛାଡ଼ ଆନ୍ଦୋଳନରେ ସକ୍ରିୟ ଥିଲେ। ତାଙ୍କର ଜାତୀୟତାବାଦୀ କାର୍ଯ୍ୟକଳାପ ଯୋଗୁଁ ତାଙ୍କୁ ବ୍ରିଟିଶ କର୍ତ୍ତୃପକ୍ଷ ଅନେକ ଥର ଜେଲ୍ ପଠାଇଥିଲେ। ମହତାବ ୧୯୪୬ ରୁ ୧୯୫୦ ମସିହା ପର୍ଯ୍ୟନ୍ତ ଓଡ଼ିଶାର ପ୍ରଥମ ମୁଖ୍ୟମନ୍ତ୍ରୀ ଭାବେ ଦାୟିତ୍ଵ ତୁଲାଇଥିଲେ ଏବଂ ପରେ ୧୯୫୬ ରୁ ୧୯୬୧ ପର୍ଯ୍ୟନ୍ତ ମୁଖ୍ୟମନ୍ତ୍ରୀ କାର୍ଯ୍ୟ କରିଥିଲେ। ତାଙ୍କ କାର୍ଯ୍ୟକାଳ ମଧ୍ୟରେ, ସେ ଶିକ୍ଷା, ଶିଳ୍ପ ଏବଂ କୃଷି କ୍ଷେତ୍ରର ବିକାଶରେ ଅନେକ ସଂସ୍କାର ଆଣିଥିଲେ। ତାଙ୍କର ଏକ ଗୁରୁତ୍ଵପୂର୍ଣ୍ଣ ସଫଳତା ଥିଲା ପ୍ରଦେଶର ବିଭିନ୍ନ ଗଡ଼ଜାତ ରାଜ୍ୟକୁ ମିଶ୍ରଣ କରି ଏକ ଅଖଣ୍ଡ ଓଡ଼ିଶା ଗଠନ କରିବା। ବିଶ୍ଵର ଦୀର୍ଘତମ ନଦୀ ବନ୍ଧ ମଧ୍ୟରୁ ଗୋଟିଏ 'ହୀରାକୁଦ ବନ୍ଧ' ନିର୍ମାଣରେ ତାଙ୍କର ଯଥେଷ୍ଟ ଅବଦାନ ରହିଛି, ଯାହା ଓଡ଼ିଶାର କୃଷି ଓ ବିଦ୍ୟୁତ୍ ବିକାଶରେ ଏକ ମାଇଲଖୁଣ୍ଟ। ରାଜନୀତି ବ୍ୟତୀତ, ମହତାବ ଜଣେ ପ୍ରସିଦ୍ଧ ଲେଖକ ଓ ଐତିହାସିକ ଥିଲେ। ସେ 'ପ୍ରଜାତନ୍ତ୍ର' ନାମକ ଏକ ସାପ୍ତାହିକ ପତ୍ରିକା ଆରମ୍ଭ କରିଥିଲେ, ଯାହା ପରେ ଏକ ଦୈନିକ ଖବରକାଗଜରେ ପରିଣତ ହୋଇଗଲା। ତାଙ୍କର ଉଲ୍ଲେଖନୀୟ ରଚନା ମଧ୍ୟରେ 'ଓଡ଼ିଶା ଇତିହାସ' ଅନ୍ତର୍ଭୁକ୍ତ। ଓଡ଼ିଆ ସାହିତ୍ୟରେ ଅବଦାନ ପାଇଁ ତାଙ୍କୁ ୧୯୮୩ ମସିହାରେ କେନ୍ଦ୍ର ସାହିତ୍ୟ ଏକାଡେମୀ ପୁରସ୍କାର ପ୍ରଦାନ କରାଯାଇଥିଲା। ହରେକୃଷ୍ଣ ମହତାବଙ୍କ ଦୃଷ୍ଟିକୋଣ, ନେତୃତ୍ଵ ଏବଂ ଓଡ଼ିଶାର ପ୍ରଗତି ପ୍ରତି ତାଙ୍କ ସମର୍ପଣ ତାଙ୍କୁ ଚିରସ୍ମରଣୀୟ କରି ରଖିଛି। ସେ ଜାନୁଆରୀ ୨, ୧୯୮୭ ରେ ଇହଧାମ ତ୍ୟାଗ କରିଥିଲେ ସତ, କିନ୍ତୁ ଓଡ଼ିଶା ଇତିହାସରେ ସେ ଜଣେ ଯୁଗପୁରୁଷ ଓ ଦୂରଦର୍ଶୀ ନେତା ଭାବରେ ତାଙ୍କୁ ସଦାସର୍ବଦା ସ୍ମରଣ କରାଯିବ।",
+    q: "ମହତାବଙ୍କ ଦ୍ୱାରା ପ୍ରତିଷ୍ଠିତ ଓଡ଼ିଆ ଖବରକାଗଜର ନାମ କ’ଣ ଥିଲା ?",
+    a: [
+      "ପ୍ରଜାତନ୍ତ୍ର",
+      "ଧରିତ୍ରୀ",
+      "ଖବର",
+      "ସମାଜ"
+    ],
+    c: 1,
+  },
+  //80
+  {
+    compression: "ଓଡ଼ିଶାର ହରେକୃଷ୍ଣ ମହତାବ ଏକାଧାରାରେ ଜଣେ ପ୍ରମୁଖ ସ୍ଵାଧୀନତା ସଂଗ୍ରାମୀ, ରାଜନେତା ଓଡ଼ିଶାର ଜନପ୍ରିୟ ନେତା ଥିଲେ। ସେ 'ଉତ୍କଳ କେଶରୀ' ନାମରେ ବେଶ୍ ପରିଚିତ। ତାଙ୍କୁ \"ଆଧୁନିକ ଓଡ଼ିଶାର ସ୍ଥପତି\" ଭାବରେ ସମ୍ମାନିତ କରାଯାଏ। ମହତାବ ୧୮୯୯ ମସିହା ନଭେମ୍ବର ୨୧ ତାରିଖରେ ଭଦ୍ରକ ଜିଲ୍ଲାର ଆଗରପଡ଼ା ଗ୍ରାମରେ ଜନ୍ମଗ୍ରହଣ କରିଥିଲେ। ସେ ଭାରତର ସ୍ଵାଧୀନତା ସଂଗ୍ରାମରେ ଓ ପରେ ଓଡ଼ିଶାକୁ ଏକ ଆଧୁନିକ ରାଜ୍ୟ ଭାବରେ ଗଠନ ଏବଂ ବିକାଶ କରିବାରେ ପ୍ରମୁଖ ଭୂମିକା ଗ୍ରହଣ କରିଥିଲେ। ମହାତ୍ମା ଗାନ୍ଧୀଙ୍କ ଦ୍ଵାରା ଅନୁପ୍ରାଣିତ ହୋଇ, ମହତାବ ୧୯୨୧ ମସିହାରେ ଅସହଯୋଗ ଆନ୍ଦୋଳନରେ ଯୋଗଦେଇଥିଲେ ଏବଂ ଆଇନ ଅମାନ୍ୟ ଆନ୍ଦୋଳନ ଏବଂ ଭାରତ ଛାଡ଼ ଆନ୍ଦୋଳନରେ ସକ୍ରିୟ ଥିଲେ। ତାଙ୍କର ଜାତୀୟତାବାଦୀ କାର୍ଯ୍ୟକଳାପ ଯୋଗୁଁ ତାଙ୍କୁ ବ୍ରିଟିଶ କର୍ତ୍ତୃପକ୍ଷ ଅନେକ ଥର ଜେଲ୍ ପଠାଇଥିଲେ। ମହତାବ ୧୯୪୬ ରୁ ୧୯୫୦ ମସିହା ପର୍ଯ୍ୟନ୍ତ ଓଡ଼ିଶାର ପ୍ରଥମ ମୁଖ୍ୟମନ୍ତ୍ରୀ ଭାବେ ଦାୟିତ୍ଵ ତୁଲାଇଥିଲେ ଏବଂ ପରେ ୧୯୫୬ ରୁ ୧୯୬୧ ପର୍ଯ୍ୟନ୍ତ ମୁଖ୍ୟମନ୍ତ୍ରୀ କାର୍ଯ୍ୟ କରିଥିଲେ। ତାଙ୍କ କାର୍ଯ୍ୟକାଳ ମଧ୍ୟରେ, ସେ ଶିକ୍ଷା, ଶିଳ୍ପ ଏବଂ କୃଷି କ୍ଷେତ୍ରର ବିକାଶରେ ଅନେକ ସଂସ୍କାର ଆଣିଥିଲେ। ତାଙ୍କର ଏକ ଗୁରୁତ୍ଵପୂର୍ଣ୍ଣ ସଫଳତା ଥିଲା ପ୍ରଦେଶର ବିଭିନ୍ନ ଗଡ଼ଜାତ ରାଜ୍ୟକୁ ମିଶ୍ରଣ କରି ଏକ ଅଖଣ୍ଡ ଓଡ଼ିଶା ଗଠନ କରିବା। ବିଶ୍ଵର ଦୀର୍ଘତମ ନଦୀ ବନ୍ଧ ମଧ୍ୟରୁ ଗୋଟିଏ 'ହୀରାକୁଦ ବନ୍ଧ' ନିର୍ମାଣରେ ତାଙ୍କର ଯଥେଷ୍ଟ ଅବଦାନ ରହିଛି, ଯାହା ଓଡ଼ିଶାର କୃଷି ଓ ବିଦ୍ୟୁତ୍ ବିକାଶରେ ଏକ ମାଇଲଖୁଣ୍ଟ। ରାଜନୀତି ବ୍ୟତୀତ, ମହତାବ ଜଣେ ପ୍ରସିଦ୍ଧ ଲେଖକ ଓ ଐତିହାସିକ ଥିଲେ। ସେ 'ପ୍ରଜାତନ୍ତ୍ର' ନାମକ ଏକ ସାପ୍ତାହିକ ପତ୍ରିକା ଆରମ୍ଭ କରିଥିଲେ, ଯାହା ପରେ ଏକ ଦୈନିକ ଖବରକାଗଜରେ ପରିଣତ ହୋଇଗଲା। ତାଙ୍କର ଉଲ୍ଲେଖନୀୟ ରଚନା ମଧ୍ୟରେ 'ଓଡ଼ିଶା ଇତିହାସ' ଅନ୍ତର୍ଭୁକ୍ତ। ଓଡ଼ିଆ ସାହିତ୍ୟରେ ଅବଦାନ ପାଇଁ ତାଙ୍କୁ ୧୯୮୩ ମସିହାରେ କେନ୍ଦ୍ର ସାହିତ୍ୟ ଏକାଡେମୀ ପୁରସ୍କାର ପ୍ରଦାନ କରାଯାଇଥିଲା। ହରେକୃଷ୍ଣ ମହତାବଙ୍କ ଦୃଷ୍ଟିକୋଣ, ନେତୃତ୍ଵ ଏବଂ ଓଡ଼ିଶାର ପ୍ରଗତି ପ୍ରତି ତାଙ୍କ ସମର୍ପଣ ତାଙ୍କୁ ଚିରସ୍ମରଣୀୟ କରି ରଖିଛି। ସେ ଜାନୁଆରୀ ୨, ୧୯୮୭ ରେ ଇହଧାମ ତ୍ୟାଗ କରିଥିଲେ ସତ, କିନ୍ତୁ ଓଡ଼ିଶା ଇତିହାସରେ ସେ ଜଣେ ଯୁଗପୁରୁଷ ଓ ଦୂରଦର୍ଶୀ ନେତା ଭାବରେ ତାଙ୍କୁ ସଦାସର୍ବଦା ସ୍ମରଣ କରାଯିବ।",
+    q: "କେଉଁକ୍ଷେତ୍ରରେ ଅବଦାନ ପାଇଁହରେକୃଷ୍ଣ ମହତାବଙ୍କୁସାହିତ୍ୟ ଏକାଡେମୀ ପୁରସ୍କାର ପ୍ରଦାନ କରାଯାଇଥିଲା ?",
+    a: [
+      "ସାମାଜିକ କାର୍ଯ୍ୟ",
+      "ରାଜନୀତି",
+      "ସାହିତ୍ୟ",
+      "ଶିକ୍ଷା"
+    ],
+    c: 3,
+  },
+  //
+  //81
+  {
+    q: "Refer to the following letter, symbol series and answer the questions that follow. Counting to be done from left to right only.\n\n(Left) P R * V © € # £ S J M @ L * € X © V S # K S (Right)\n\nHow many such symbols are there each of which is immediately preceded by a letter and also immediately followed by a symbol?",
+    a: [
+      "2",
+      "3",
+      "1",
+      "4"
+    ],
+    c: 1,
+  },
+  //82
+  {
+    q: "If 1 is added to each even digit and 2 is added to each odd digit in the number 5463178, what will be the sum of the first digit from left and the first digit from right in the number thus formed?",
+    a: [
+      "16",
+      "11",
+      "18",
+      "13"
+    ],
+    c: 1,
+  },
+  //83
+  {
+    q: "Select the pair which follows the same pattern as that followed by the two pairs given below. Both pairs follow the same pattern.\n\nFIF-EHE\nNQN-MPM",
+    a: [
+      "XZV-WZW",
+      "XZV-VYV",
+      "XAX-VZV",
+      "XAX-WZW"
+    ],
+    c: 4,
+  },
+  //84
+  {
+    q: "Six friends A, B, F, G, H and I are sitting in a straight line facing north. Only two people sit to the left of A. Only two people sit between A and G. I sits second to the right of A. Only two people sit between I and F. B sits at some place to the left of H. How many people sit to the right of B?",
+    a: [
+      "Three",
+      "Five",
+      "One",
+      "Four"
+    ],
+    c: 2,
+  },
+  //85
+  {
+    q: "What will come in place of the question mark (?) in the following equation if '+' and '-' are interchanged and '×' and '÷' are interchanged?\n65 ÷ 5 + 186 × 2 - 20 = ?",
+    a: [
+      "288",
+      "270",
+      "248",
+      "252"
+    ],
+    c: 4,
+  },
+  //86
+  {
+    q: "H is the sister of I. I is the brother of J. Y is the father of Z. Z is the son of J. How is Z related to H?",
+    a: [
+      "Sister's son",
+      "Mother's father",
+      "Brother",
+      "Son"
+    ],
+    c: 1,
+  },
+  //87
+  {
+    q: "Refer to the following number series and answer the question that follows (all numbers are single-digit numbers only). Counting to be done from left to right only. \n\n(Left) 1 2 4 8 3 1 2 6 7 8 2 7 6 6 3 2 3 1 1 6 9 3 7 9 5 8 5 (Right).\n\nHow many such odd numbers are there, each of which is immediately preceded by an odd number and also immediately followed by an odd number?",
+    a: ["4","6","3","5"],
+    c: 1,
+  },
+  //88
+  {
+    q: "D is the daughter of G. G is the wife of K. L is the mother of P. L is the sister of K. How is L related to D?",
+    a: ["Mother", "Father's mother", "Sister", "Father's sister"],
+    c: 4,
+  },
+  //89
+  {
+    q: "Mr. Tosi starts from Point A and drives 6 km towards east. He then takes a right turn, drives 2 km, turns right and drives 9 km. He then takes a right turn and drives 11 km. He takes a final right turn, drives 3 km and stops at Point P. How far (shortest distance) and towards which direction should he drive in order to reach Point A again? (All turns are 90° turns only unless specified.)",
+    a: ["10 km to east", "7 km to west", "9 km to south", "8 km to north"],
+    c: 3,
+  },
+  //90
+  {
+    q: "Refer to the given letter series and answer the question that follows. Counting to be done from left to right only.\n\n (Left) H L O V I K R V W T U Q X X S P Z P S P Q (Right).\n\n How many such consonants are there each of which is immediately preceded by a consonant and also immediately followed by a vowel?",
+    a: ["One", "Four", "Three", "Two"],
+    c: 4,
+  },
+  //91
+  {
+    q: "Based on the English alphabetical order, three of the following four letter-cluster pairs are alike in a certain way and thus form a group. Which letter-cluster pair DOES NOT belong to that group?\n\n (Note: The odd one out is not based on the number of consonants/vowels or their position in the letter-cluster.)",
+    a: ["GL - KP", "TR - PU", "KP - OT", "PU - TY"],
+    c: 2,
+  },
+  //92
+  {
+    q: "What should come in place of the question mark (?) in the given series? \n\n156 127 98 69 ? 11",
+    a: ["54", "43", "49", "40"],
+    c: 4,
+  },
+  //93
+  {
+    q: "Based on the English alphabetical order, three of the following four letter-cluster pairs are alike in a certain way and thus form a group. Which is the letter-cluster pair that DOES NOT belong to that group? \n\n(Note: The odd one out is not based on the number of consonants/vowels or their position in the letter-cluster.)",
+    a: ["QN−JJ", "XU−RO", "TQ−NK", "BY−VS"],
+    c: 1,
+  },
+  //94
+  {
+    q: "What should come in place of the question mark (?) in the given series in order to make it logically complete? \n\nXWV2, SRQ4, NML6, ?",
+    a: ["DCB8", "GFE8", "IHG8", "FED8"],
+    c: 3,
+  },
+  //95
+  {
+    q: "I, J, K, L, M, N and O are sitting around a circular table facing the centre of the table. J sits third to the left of O. L sits second to the left of I. O is an immediate neighbour of both N and L. K is not an immediate neighbour of J. How many people sit between M and L when counted from the right of M?",
+    a: ["Three", "One", "Two", "Four"],
+    c: 3,
+  },
+  //96
+  {
+    q: "This question is based on the five, three-digit numbers given below. (Left) 107 963 611 893 681 (Right). (Example- 697 – First digit = 6, second digit = 9 and third digit = 7). NOTE - All operations to be done from left to right. What will be the resultant if the second digit of the highest number is added to the first digit of the lowest number?",
+    a: ["8", "10", "7", "6"],
+    c: 3,
+  },
+  //97
+  {
+    q: "Each of P, Q, R, S, T, U and V has an exam on a different day of a week starting from Monday and ending on Sunday of the same week. R has the exam on Wednesday. Exactly three people have their exams between R and Q. V has the exam immediately after T, and S has the exam immediately before T. Only three people have their exams between U and T. Who has the exam on Monday?",
+    a: ["Q", "T", "U", "S"],
+    c: 3,
+  },
+  //98
+  {
+    q: "If ‘P’ stands for ‘×’, ‘Q’ stands for ‘÷’, ‘R’ stands for ‘−’ and ‘S’ stands for ‘+’, then what will come in place of the question mark (?) in the following equation? 18 P 2 R 7 P 4 S 9 Q 3 S 15 = ?",
+    a: ["44", "26", "20", "38"],
+    c: 2,
+  },
+  //99
+  {
+    q: "I, J, K, L, M, N and O are sitting around a circular table facing the centre of the table. J sits to the immediate right of L. Only three people sit between J and K when counted from the left of J. Only three people sit between L and N when counted from the left of L. I sits to the immediate right of M. How many people sit between O and M when counted from the left of M?",
+    a: ["Two", "Four", "One", "Three"],
+    c: 1,
+  },
+  //100
+  {
+    q: "In a certain code language, \n'A + B' means ‘A is the mother of B’,\n 'A − B' means ‘A is the brother of B’,\n 'A @ B' means ‘A is the wife of B’ and \n'A % B' means ‘A is the father of B’.\n\n How is C related to Q if ‘C % S − D + W @ Q’?",
+    a: ["Wife's brother", "Wife's mother's brother", "Wife's mother's father", "Wife's father"],
+    c: 3,
+  }
+
+];
+
+    let currentIdx = 0;
+    let shuffledData = [];
+    let stats = { correct: 0, wrong: 0 };
+    let timerInterval = null;
+    let remainingSeconds = 90 * 60; // 90 minutes
+    let pendingPassage = null;
+    let warningTriggered = false;
+
+    // shuffle options each exam start to randomize choices
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    async function attemptEnterFullscreenAndLandscape() {
+      // Try fullscreen (may be blocked without user gesture)
+      try {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) await docEl.requestFullscreen();
+        else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
+      } catch (e) {
+        throw new Error('fullscreen-failed');
+      }
+
+      // Try to lock orientation to landscape (best-effort)
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock('landscape');
+        } else if (screen.lockOrientation) {
+          screen.lockOrientation('landscape');
+        }
+      } catch (e) {
+        // ignore orientation failures
+      }
+    }
+
+    function enableFullscreenAndLandscape() {
+      attemptEnterFullscreenAndLandscape().then(() => {
+        const p = document.getElementById('fs-prompt'); if (p) p.style.display = 'none';
+      }).catch(() => {
+        // If still blocked, keep the prompt visible
+        const p = document.getElementById('fs-prompt'); if (p) p.style.display = 'block';
+      });
+    }
+
+    function init() {
+        if (questions.length === 0) {
+            alert('No questions available. Please add questions to start the exam.');
+            return;
+        }
+
+        stats = { correct: 0, wrong: 0 };
+        currentIdx = 0;
+        pendingPassage = null;
+        document.getElementById('exam-main').style.display = 'flex';
+        document.getElementById('result-screen').style.display = 'none';
+
+        // preserve original questions order
+        shuffledData = [...questions];
+
+        // attempt fullscreen + landscape on start; if blocked, show prompt button
+        attemptEnterFullscreenAndLandscape().then(() => {
+          const p = document.getElementById('fs-prompt'); if (p) p.style.display = 'none';
+        }).catch(() => {
+          const p = document.getElementById('fs-prompt'); if (p) p.style.display = 'block';
+        });
+
+        const container = document.getElementById('questions-container');
+        const palette = document.getElementById('palette');
+        container.innerHTML = "";
+        palette.innerHTML = "";
+
+        let displayIndex = 0;
+        shuffledData.forEach((item, i) => {
+          // If an item has no options (used as passage), hold it and attach to next relevant question
+          if (Array.isArray(item.a) && item.a.length === 0) { pendingPassage = item.q; return; }
+          const correctVal = (typeof item.c === 'number' && item.c > 0) ? item.a[item.c - 1] : null; // c is 1-based in data
+          const shuffledOptions = Array.isArray(item.a) ? shuffleArray([...item.a]) : [];
+
+          const displayIdx = displayIndex++;
+          const block = document.createElement('div');
+          block.className = `question-block ${displayIdx === 0 ? 'active' : ''}`;
+          block.id = `q-block-${displayIdx}`;
+          let qHtml = '';
+          // ✅ ADD THIS BLOCK
+          if (item.compression) {
+            qHtml += `<div class="passage">${item.compression}</div>`;
+          }
+          qHtml += `<h3>Question ${displayIdx + 1}</h3><p style="white-space: pre-line;">${item.q}</p>`;
+           block.innerHTML = qHtml;
+            const optionsWrapper = document.createElement('div');
+            shuffledOptions.forEach((opt) => {
+                const btn = document.createElement('div');
+                btn.className = 'option';
+                btn.innerText = opt;
+                btn.setAttribute('aria-label', `Option: ${opt}`);
+              btn.onclick = () => handleAnswer(displayIdx, opt, correctVal, btn, optionsWrapper);
+                optionsWrapper.appendChild(btn);
+            });
+            block.appendChild(optionsWrapper);
+
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback-msg';
+            feedback.id = `feedback-${displayIdx}`;
+            block.appendChild(feedback);
+
+            // add an HTML comment before each question block with its serial number
+            container.insertAdjacentHTML('beforeend', `<!-- ${displayIdx + 1} -->`);
+            container.appendChild(block);
+
+            const dot = document.createElement('div');
+            dot.className = 'q-circle';
+            dot.id = `palette-${displayIdx}`;
+            dot.innerText = displayIdx + 1;
+            dot.setAttribute('aria-label', `Question ${displayIdx + 1}`);
+            dot.onclick = () => jumpTo(displayIdx);
+            palette.appendChild(dot);
+        });
+          // reset and start timer when exam initializes/restarts
+          stopTimer();
+          remainingSeconds = 90 * 60;
+          startTimer();
+        }
+
+    function handleAnswer(qIdx, selected, correct, btn, wrapper) {
+        const feedback = document.getElementById(`feedback-${qIdx}`);
+        const allOptions = wrapper.querySelectorAll('.option');
+        allOptions.forEach(opt => opt.classList.add('disabled'));
+
+        if (selected === correct) {
+            btn.classList.add('correct');
+            stats.correct++;
+            feedback.innerHTML = `<span style="color:var(--success)">✔ Correct!</span>`;
+        } else {
+            btn.classList.add('wrong');
+            stats.wrong++;
+            feedback.innerHTML = `<span style="color:var(--error)">✘ Incorrect. The correct answer is: ${correct}</span>`;
+            allOptions.forEach(opt => {
+                if (opt.innerText === correct) opt.classList.add('correct');
+            });
+        }
+        feedback.style.display = 'block';
+        document.getElementById(`palette-${qIdx}`).classList.add('answered');
+    }
+
+    function formatTime(sec) {
+      const hrs = Math.floor(sec / 3600);
+      const mins = Math.floor((sec % 3600) / 60);
+      const secs = sec % 60;
+      if (hrs > 0) return `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+      return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    }
+
+    function startTimer() {
+      const el = document.getElementById('timer');
+      if (!el) return;
+      el.innerText = formatTime(remainingSeconds);
+      timerInterval = setInterval(() => {
+        remainingSeconds--;
+        if (remainingSeconds === 300) triggerWarning();
+        if (remainingSeconds <= 0) {
+          el.innerText = '00:00';
+          stopTimer();
+          finishExam();
+          return;
+        }
+        el.innerText = formatTime(remainingSeconds);
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    function triggerWarning() {
+      if (warningTriggered) return;
+      warningTriggered = true;
+      const t = document.getElementById('timer');
+      const w = document.getElementById('time-warning');
+      if (t) t.classList.add('timer-warning');
+      if (w) w.style.display = 'block';
+      // optionally, flash document title to draw attention
+      let flash = 0;
+      const originalTitle = document.title;
+      const titleInterval = setInterval(() => {
+        flash++;
+        document.title = flash % 2 === 0 ? '!! 5 minutes left !!' : originalTitle;
+        if (flash > 10) { clearInterval(titleInterval); document.title = originalTitle; }
+      }, 800);
+    }
+
+    function finishExam() {
+      stopTimer();
+        document.getElementById('exam-main').style.display = 'none';
+        const resultScreen = document.getElementById('result-screen');
+        resultScreen.style.display = 'block';
+
+        const total = document.querySelectorAll('.question-block').length;
+        const attempted = stats.correct + stats.wrong;
+        const skipped = total - attempted;
+
+        resultScreen.innerHTML = `
+            <h1 style="color:var(--primary)">Exam Summary</h1>
+            <div style="text-align:left; background:#f1f3f4; padding:20px; border-radius:8px; margin:20px 0; font-size:1.1rem;">
+                <p>Total Questions: <b>${total}</b></p>
+                <p style="color:var(--success)">Total Correct: <b>${stats.correct}</b></p>
+                <p style="color:var(--error)">Total Wrong: <b>${stats.wrong}</b></p>
+                <p style="color:var(--gray)">Skipped: <b>${skipped}</b></p>
+                <hr>
+                <h2 style="text-align:center">Score: ${((stats.correct / total) * 100).toFixed(2)}%</h2>
+            </div>
+            <h3 style="text-align:center">Thank you!</h3>
+            <button class="btn-ui" style="background:var(--primary); padding:15px 40px; font-size:1rem;" onclick="init()">RESTART EXAM</button>
+            <h3><a href="https://www.instagram.com/tanmaylucky21/" target="_blank">For more DM me on Instagram</a></h3>
+        `;
+    }
+
+    function jumpTo(i) {
+        document.querySelector('.question-block.active').classList.remove('active');
+        document.getElementById(`q-block-${i}`).classList.add('active');
+        currentIdx = i;
+    }
+
+    function changeQuestion(dir) {
+      const total = document.querySelectorAll('.question-block').length;
+      let newIdx = currentIdx + dir;
+      if (newIdx >= 0 && newIdx < total) jumpTo(newIdx);
+    }
+
+    window.onload = init;
+</script>
+
+</body>
+</html>
