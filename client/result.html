@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Result - OSSSC Practice Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container header-flex">
+            <h1>OSSSC Practice Portal</h1>
+            <nav>
+                <a href="dashboard.html">Dashboard</a>
+            </nav>
+        </div>
+    </header>
+    <main class="container main-content">
+        <div class="result-box">
+            <h2>Test Submitted Successfully!</h2>
+            <div class="score-display">
+                <div class="score-circle">
+                    <span id="score-text">0</span> / <span id="total-text">0</span>
+                </div>
+            </div>
+            <p class="percentage-text">You scored <strong id="percentage-val">0%</strong></p>
+            <div class="result-actions">
+                <a href="dashboard.html" class="btn btn-primary">Go to Dashboard</a>
+                <a href="test.html" class="btn btn-secondary">Take Another Test</a>
+            </div>
+        </div>
+    </main>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const score = urlParams.get('score');
+            const total = urlParams.get('total');
+
+            if(score !== null && total !== null) {
+                document.getElementById('score-text').textContent = score;
+                document.getElementById('total-text').textContent = total;
+                const percentage = ((parseInt(score) / parseInt(total)) * 100).toFixed(2);
+                document.getElementById('percentage-val').textContent = percentage + '%';
+            } else {
+                window.location.href = 'dashboard.html';
+            }
+        });
+    </script>
+</body>
+</html>

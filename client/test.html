@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Test - OSSSC Practice Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container header-flex">
+            <h1>OSSSC Practice Portal</h1>
+            <nav>
+                <div id="timer" class="timer">Time Left: 30:00</div>
+            </nav>
+        </div>
+    </header>
+    <main class="container main-content">
+        <div id="loading" class="loading">Loading questions...</div>
+        <div id="test-container" style="display:none;">
+            <div id="question-header" class="question-header">
+                <h2>Question <span id="current-q-num">1</span> of <span id="total-q-num"></span></h2>
+            </div>
+            <div id="question-text" class="question-text"></div>
+            <form id="options-form" class="options-container"></form>
+            <div class="test-navigation">
+                <button id="prev-btn" class="btn btn-secondary" disabled>Previous</button>
+                <button id="next-btn" class="btn btn-primary">Next</button>
+                <button id="submit-btn" class="btn btn-success" style="display:none;">Submit Test</button>
+            </div>
+        </div>
+        <div id="no-questions" style="display:none;" class="error">
+            No questions available to start the test.
+            <br>
+            <a href="dashboard.html" class="btn btn-secondary mt-1">Back to Dashboard</a>
+        </div>
+    </main>
+    <script src="js/test.js"></script>
+</body>
+</html>

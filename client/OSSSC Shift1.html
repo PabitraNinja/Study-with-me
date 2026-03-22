@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSSSC CRE </title>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --text: #202124; --success: #1e8e3e; --error: #d93025; --gray: #5f6368; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        header { background: #fff; padding: 10px 25px; border-bottom: 1px solid #dadce0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        #timer { background: var(--primary); color: white; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 0.95rem; }
+        main { display: flex; flex: 1; overflow: hidden; }
+        #question-area { flex: 3; padding: 30px; overflow-y: auto; background: white; margin: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        #sidebar { flex: 1.2; background: #fff; border-left: 1px solid #dadce0; padding: 20px; overflow-y: auto; }
+        .question-block { display: none; }
+        .question-block.active { display: block; }
+        .option { display: block; padding: 12px; margin: 8px 0; border: 1px solid #dadce0; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        .option.correct { background: #e6f4ea; border-color: var(--success); color: var(--success); pointer-events: none; }
+        .option.wrong { background: #fce8e6; border-color: var(--error); color: var(--error); pointer-events: none; }
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .feedback-msg { margin-top: 15px; padding: 10px; border-radius: 4px; font-weight: bold; display: none; }
+        .q-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .q-circle { width: 35px; height: 35px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .q-circle.answered { background: var(--primary); color: white; border-color: var(--primary); }
+        .nav-btns { margin-top: 30px; display: flex; gap: 10px; }
+        .btn-ui { padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; color: white; transition: 0.3s; }
+        .btn-ui:hover { opacity: 0.8; }
+        #result-screen { display: none; text-align: center; padding: 50px; background: white; margin: 50px auto; border-radius: 12px; max-width: 600px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .passage { background: #fffef6; border-left: 4px solid #ffd54f; padding: 14px; margin-bottom: 12px; border-radius: 4px; color: #222; white-space: pre-wrap; }
+        /* Warning styles for final 5 minutes */
+        #time-warning { display: none; background: #ff9800; color: #fff; padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size:0.95rem; }
+        .timer-warning { background: #ff5722 !important; box-shadow: 0 0 12px rgba(255,87,34,0.5); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 rgba(255,87,34,0.6); } 50% { transform: scale(1.03); box-shadow: 0 0 18px rgba(255,87,34,0.9); } 100% { transform: scale(1); box-shadow: 0 0 0 rgba(255,87,34,0.6); } }
+        #fs-prompt { position: fixed; right: 18px; bottom: 18px; z-index: 9999; display: none; }
+        #fs-prompt .btn-ui { background: var(--primary); }
+    </style>
+</head>
+<body>
+
+<header>
+  <div><strong>18  oct 2025 1st Shift</strong></div>
+  <div style="color:hwb(304 4% 4%)" ><strong>Made By Lucky  </a></strong></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div id="timer">90:00</div>
+    <div id="time-warning" role="alert" aria-live="assertive">Only 5 minutes remaining!</div>
+    <button class="btn-ui" style="background:var(--error)" onclick="finishExam()">SUBMIT EXAM</button>
+  </div>
+  <div id="fs-prompt"><button class="btn-ui" onclick="enableFullscreenAndLandscape()">Enter Fullscreen & Landscape</button></div>
+</header>
+
+<main id="exam-main">
+    <section id="question-area">
+        <div id="questions-container"></div>
+        <div class="nav-btns">
+            <button class="btn-ui" style="background:var(--gray)" onclick="changeQuestion(-1)">PREVIOUS</button>
+            <button class="btn-ui" style="background:var(--primary)" onclick="changeQuestion(1)">NEXT</button>
+        </div>
+    </section>
+
+    <aside id="sidebar">
+        <h4>Question Map</h4>
+        <div class="q-grid" id="palette"></div>
+    </aside>
+</main>
+
+<div id="result-screen"></div>
+
+<script>
+    const questions = [
+        { q: "Simplify (0.67)^3 +(0.33)^3 divided by (0.4489 - 0.2211 + 0.1089)", a: ["1.1", "2", "1", "0"], c: 2 },
+{ q: "A merchant marks up his goods by 45% and then offers a discount on the marked price. If the final selling price after the discount results in no profit or loss, then what percentage discount (rounded off to the nearest integer) did the merchant offer?", a: ["44%", "49%", "36%", "31%"], c: 2 },
+{ q: "Find the value of m satisfying given equation. Find the value of m, satisfying equation: (22/6)^14 × (6/22)^3 × (22/6)^3 = (6/22)^(4m + 3)", a: ["-8/4", "-23/4", "-20/4", "-17/4"], c: 4 },
+
+{ q: "A and B together have ₹1210. If 4/15 of A = 2/5 of B, find B's amount.", a: ["₹560", "₹460", "₹664", "₹484"], c: 3 },
+
+{
+    q: "The cost of a particular variety of ghee is ₹70 per kg and that of another is ₹80 per kg. If both are mixed in the ratio of 4 : 7, then what is the price per kg of the mixed variety of ghee?",
+    a: ["₹69.32 per kg", "₹70.67 per kg", "₹76.36 per kg", "₹72.91 per kg"],
+    c: 3,
+},
+
+{ q: ` If a motorist covers a distance of 30 km in 49 minutes by moving at a speed of x km/hr
+for the first 18 minutes, then moving at the speed of 2x km/hr for the next 23 minutes
+and then again moving at the speed of x km/hr for the rest of the journey, then x is
+equal to:.`, a: ["28", "25", "22", "30"], c: 4 },
+
+{ q: `The cost price of an article is ₹1,196. The vendor wants to earn a profit of 5% after
+giving a discount of 20%. What is the marked price of the article? (Select the option
+correct to the nearest integer.)
+`, a: ["₹1571", "₹1574", "₹1573", "₹1570"], c: 4 },
+
+{ q: ` Ravi planned a trip where he travelled in three parts. For the first part of his journey, he
+drove at a speed of 30 km/hr for 2 hours. Then, he increased his speed to 40 km/hr and
+continued for 3 more hours. Finally, his speed increased to 60 km/hr for the last 1 hour
+of his journey. Based on this information, what was Ravi’s average speed for the entire
+trip ?`, a: ["40", "48", "42.5", "45"], c: 4 },
+
+{ q: `Two numbers are 10% and 25% more than a third number, respectively. Find the ratio of
+the two numbers..`, a: ["23:27", "22:25", "12:25", "21:25"], c: 1 },
+
+{ q: `In a test, B got 60 marks while A got 75 marks, out of 85 maximum marks. What
+percentage of A's marks was B's marks?4120?`, a: ["125%", "85%", "88.23%", "80%"], c: 3 },
+
+{ q: `A man loses 25% by selling an article for ₹150. If he sells it for ₹240, what will be his
+gain/loss percentage?`, a: ["Gain 20%", "Loss 15%", "Gain 16%", "Loss 16%"], c: 1 },
+
+{ q: "Circumference of cylinder base is 132 cm. Find volume.", a: ["48510", "48966", "48757", "49322"], c: 1 },
+
+{ q: `The sum of the present ages of A, B and C is 192 years. 20 years ago from now, the
+ratio of their ages was 8 : 9 : 5. What is the present age of C (in years)?
+`, a: ["51", "50", "52", "53"], c: 3 },
+
+{ q: "If 4 tanθ + 3cotθ =6, then find the value of 9cot²θ + 16tan²θ.", a: ["16", "14", "8", "12"], c: 4 },
+
+{ q: `One pipe can fill a cistern twice as fast as another pipe. If together the two pipes can fill
+the cistern in 8 minutes, then the time taken (in minutes) for the slower pipe alone to fill
+the tank is:
+`, a: ["24", "16", "20", "18"], c: 1 },
+
+{ q: `A garrison of 1,210 men has provisions for 13 days. How long (in days) will the
+provisions last if the garrison be increased by 363 men?`, a: ["10", "20", "5", "30"], c: 1 },
+
+{ q: `Suresh invested a certain sum of money at 4% per annum simple interest. If he receives
+an interest of ₹33,429 after 11 years, the sum (in ₹) he invested is:`, a: ["75975", "76727", "76144", "75702"], c: 1 },
+
+{ q: `If at same rate of interest, in 2 years, the simple interest is ₹46 and compound interest,
+compounded annually is ₹69, then what is the principal (in ₹)?`, a: ["23", "27", "16", "18"], c: 1 },
+
+{ q: `Three pipes A, B and C are connected to a large water tank. Pipe A can fill the tank in 12
+hours, Pipe B can fill the tank in 15 hours and Pipe C is a drain pipe that can empty the
+tank in 20 hours. Initially, the tank is one-third full. For the first four hours, only A and C
+are opened. Then B is also opened along with A and C until the tank is half full. At that
+moment, C is closed, and A and B continue to fill the remaining water together. Find the
+total time taken to completely fill the tank`, a: ["6h40m", "7h20m", "6h20m", "7h40m"], c: 4 },
+
+{ q: "Find the positive difference between the roots of the equation 7x^2 − 10x + 3 = 0", a: ["9/7", "6/7", "-4/7", "4/7"], c: 4 },
+
+{ q: "What is the name of the newly formed body on January 2025, to facilitate the pharmaceutical ecosystem in Odisha?", a: ["Odisha Medical Innovation Board", "Pharma Development Cell", "Pharma Development Board", "Industrial Growth Authority"], c: 2 },
+
+{ q: "The word 'Veda' is derived from the root 'vid', meaning what in Sanskrit language?", a: ["To write", "To know", "To sing", "To rule"], c: 2 },
+
+{ q: "The Indo-Gangetic Plains are widest in which region, with a maximum width of about 500 km?", a: ["Central India", "East India", "South India", "West India"], c: 4 },
+
+{ q: "According to the Directorate of Economics and Statistics, Government of Odisha,which sector accounted for the largest share of the state’s economy in 2024–25?", a: ["Service Sector", "Industry sector", "Agriculture sector", "Tourism sector"], c: 2 },
+
+{ q: "Which of the following is NOT an objective of the Mahatma Gandhi National Rural Employment Guarantee Act (MGNREGA)?", a: ["1. Enhancing livelihood security in rural areas","2. Providing 100 days of wage employment to every rural household","3. Ensuring sustainable development to combat deforestation and soil erosion","4. Providing direct financial aid to unemployed youth in urban areas"], c: 4 },
+
+{ q: "The Odisha Money-lenders' Act, specifically designed to lower the rate of interest charged by moneylenders, was passed in which of the following years?", a: ["1939", "1930", "1928", "1948"], c: 1 },
+
+{ q: "At the 2025 Asian Athletics Championships, which of the following countries topped the medal tally?", a: ["Bahrain", "South Korea", "China", "India"], c: 3 },
+
+{ q: "Which of the following articles deals with the duties of the Chief Minister, with respect to the furnishing of information to the Governor?", a: ["Article 187", "Article 195", "Article 155", "Article 167"], c: 4 },
+
+{ q: "Which Article of the Constitution empowers the Parliament to legislate with respect to a matter in the State list in national interest??", a: ["Article 250", "Article 249", "Article 251", "Article 248"], c: 2 },
+
+{ q: "According to the 2023-24 Economic Survey, Odisha’s poverty rate during 2022-23 was estimated at", a: ["11.07%", "25.05%", "4.09%", "18.08%"], c: 1 },
+
+{ q: "The Green Revolution in India was initially focused on increasing the production of which of the following crops?", a: ["Pulses and Oilseeds", "Wheat & Rice", "Fruits and vegetables", "Sugarcane and cotton"], c: 2 },
+
+{ q: "Which milestone satellite did India launch in January 2025 to enhance its Navigation with Indian Constellation (NavIC) positioning system?", a: ["RISAT-3AI", "NVS-02", "INSAT-3C", "GSAT-31"], c: 2 },
+
+{ q: "Which of the following pollutants is linked to both climate change and sustainable development challenges?", a: ["Carbon Dioxide", "Argon", "Neon", "Oxygen"], c: 1 },
+
+{ q: "In May 2025, the Union Minister for Electronics & Information Technology, Shri Ashwini Vaishnaw, announced several key initiatives at the ‘IndiaAI-Make AI in India, Make AI work for India’ event held in New Delhi aimed at advancing India’s AI journey. What is the full form of AI, which is commonly used in new technology developments?", a: ["Automated Internet", "Artificial Internet", "Automated Innovation", "Artificial Intelligence"], c: 4 },
+
+{ q: "Which of the following best describes the climate of the Indian Desert?", a: ["Sub-humid", "Equatorial and humid", "Arid with low vegetation", "TropicalMonsoon"], c: 3 },
+
+{ q: "In which of the following Congress sessions was Subhash Chandra Bose elected as the President of Congress?", a: ["Allahabad session", "Lahore session", "Haripura session", "Surat session"], c: 3 },
+
+{ q: "Who among the following became the first non-Indian member of the Indian Women’s University at Poona in 1916 and played a significant role in establishing the Women's India Association in 1917, serving as the editor of its journal Stri Dharma?", a: ["Kamaladevi Chattopadhyay", "Annie Besant", "Margaret Cousins", "Sarojini Naidu"], c: 3 },
+
+{ q: "Select the option that correctly converts the given sentence into future perfect continuous tense <br> Sangam literature is predominantly written in which language?", a: ["Pali", "Sanskrit", "Tamil", "Hindi"], c: 3 },
+
+{ q: "Which of the following is the first state to adopt the Three-Tier Panchayat Raj System ?", a: ["Rajasthan", "UP", "Uttarakhand", "Gujarat"], c: 1 },
+
+{ q: "Which of the following licences did Starlink receive in June 2025 from the Indian government to offer satellite communication services?", a: ["Global Mobile Personal Communication by Satellite(GMPCS)", "Satellite Broadcast and Internet Licence(SBIL)", "Space Communications Licence(SCL)", "Internet Provider by Satellite(IPS)"], c: 3 },
+
+{ q: "Convert into future perfect continuous tense: Scientists have been exploring deep-sea ecosystems to discovers new marin species.", 
+  a: ["Scientists will have been exploring deep-sea ecosystems to discover new marine species", "Scientists will have explored deep-sea ecosystems to discover new marine species", "Scientists will be exploring deep-sea ecosystems to discover new marine species", "Scientists will explore deep-sea ecosystems to discover new marine species."],c: 1 },
+
+{ q: "Select the most appropriate meaning of the given idiom: 'Spill the beans'?", 
+  a: ["To Eat too much", "TO Be careful", "To HAve Lot of money", "To Reveal a secret"], 
+  c: 4 },
+
+{ q: "Select the correctly spelt word to fill in the blank.\nHe was _____ the road when a car crashed nearby.?", 
+  a: ["crosing", "crrossing", "crossing", "crrosing"], 
+  c: 3 },
+
+{ q: "Select the most appropriate sentence from the given options to form a meaningful and coherent paragraph.\nThe forest was unusually quiet that morning. ___________________. Even the birds,usually chirping by dawn, were nowhere to be heard.", 
+  a: [" The hunters had returned with heavy footsteps.", " The trees had shed most of their leaves.", " A thick fog rolled in, muffling all sound.", " It rained the previous evening."], 
+  c: 3 },
+
+{ q: "Select the option that expresses the given sentence in the future tense form. \nThey played football in the evening.?", 
+  a: ["They have played football in the evening.", "They would have played football in the evening.", "They play football in the evening.", "They will play football in the evening"], 
+  c: 4 },
+
+{ q: "Select the most appropriate option to fill in the blank.\nHimesh __________ the document carefully before signing it yesterday", 
+  a: ["scanning", "has been scanned", "scans", "scanned"], 
+  c: 4 },
+
+{ q: "Select the most appropriate option to fill in the blanks.\nMonika is _____ very intelligent girl and she is one of ____ toppers in the class.", 
+  a: ["an the", "a an", "a the", "the a"], 
+  c: 3 },
+
+{ q: "Select the option that expresses the given sentence in direct speech.\nAshmeet complained that she couldn’t focus with the song playing, covering her ear.", 
+  a: [
+    "Ashmeet said, \"She can't focus with the song playing,\" covering her ears.",
+    "Ashmeet complained, \"I can’t focus with the song playing,\" covering her ears.",
+    "Ashmeet complained, \"I couldn’t focus with the song playing,\" covering her ears.",
+    "Ashmeet said, \"She couldn’t focus with the song playing,\" covering her ears."
+  ],
+  c: 2 },
+
+{ q: "Select the most appropriate conjunction to fill in the blank.\nHe insisted on going, _____ I advised him against it.", 
+  a: ["while", "since", "as if", "so that"], 
+  c: 1 },
+
+{ q: "Synonym of 'Obscure'?", 
+  a: ["Wild", "Sane", "Arrogant", "Ambiguous"], 
+  c: 4 },
+
+{ q: "what is the Active voice of: The paper had not been spoiled by them.", 
+  a: ["The papers are not being spoiled by them", " They had not spoiled the papers", "They have not spoiled the papers.", "They must not spoil the papers."], 
+  c: 2 },
+
+{ q: "Select the option that will improve the given sentence: The book comprises of five chapters.", 
+  a: [" The book is comprised of five chapters.", "The book comprises five chapters.", "The book comprises in five chapters", "The book is comprising five chapters "], 
+  c: 2 },
+
+{ q: "Select the most appropriate meaning of the given idiom 'Butterflies in one's stomach'?", 
+  a: ["To experience sleepiness", "To enjoy a delicious meal", "To have nervousness or anxiety", "To feel hungry"], 
+  c: 3 },
+
+{ q: "Select the most appropriate option to fill in the blanks. \nMy _____ gave me a beautiful _____ for my birthday.", 
+  a: ["sister; advice", "doctor; medicine", "teacher; homework", "friend; gift"], 
+  c: 4 },
+
+{ q: "Select the option that can be used as a one-word substitute for the underlined group of words.\nThe scientist was known for his ability to predict or anticipate future events", 
+  a: ["acumen", "nostalgia", "intuition", "foresight"], 
+  c: 4 },
+
+{ q: "Antonym of 'Generous'?", 
+  a: ["Kind", "Mean", "Helpful", "Angry"], 
+  c: 2 },
+
+{ q: "Fill blank: The team won the match, and everyone congratulated ______ on their success.", 
+  a: ["it", "those", "them", "they"], 
+  c: 3 },
+
+// Comprehension
+
+// Passage for comprehension (inserted as question 58)
+{ q: "A passage led to the backyard, where a well and a lavatory under a large tamarind tree served the needs of the motley tenants of the ancient house in Vinayak Mudali Street; the owner of the property, by partitioning and fragmenting all the available space, had managed to create an illusion of shelter and privacy for his hapless tenants and squeezed the maximum rent out of everyone, himself occupying a narrow ledge abutting the street, where he had a shop selling, among other things, sweets, pencils and ribbons to children swarming from the municipal school across the street.\n\nWhen he locked up for the night, he slept across the doorway so that no intruder should pass without first stumbling on him; he also piled up cunningly four empty kerosene tins inside the dark shop so that at the slightest contact they should topple down with a clatter: for him, a satisfactory burglar alarm.\n\nOnce at midnight, a cat stalking a mouse amidst the grain bags in the shop noticed a brass jug in its way and thrust its head in out of curiosity. The mouth of the jug was not narrow enough to choke the cat or wide enough to allow it to withdraw its head", a: [], c: 0 },
+
+{ q: "identify the Central theme of passage?", 
+  a: ["The desperate attempt of an animal to free itself", "The struggle of tenants in a crowded house", "The clever security tactics of a shop owner", "The dangers of curiosity and its unintended consequences"],  c: 4 },
+
+{ q: "Identify the statement that is NOT a fact presented in the passage.", 
+  a: ["The shopkeeper slept across the doorway to prevent intruders.", "The shopkeeper used empty kerosene tins as a burglar alarm", "The cat got its head stuck in a brass jug while chasing a mouse.", " The house owner provided spacious and comfortable living conditions for his tenants."], 
+  c: 4 },
+
+{ q: "Identify the structure of the passage.?", 
+  a: ["Narrative", "Cause-effect", "Chronological order", "Problem and solution"], 
+  c: 1 },
+
+  {q: "କ୍ରିୟା ବିଶେଷଣ ଚୟନ କରନ୍ତୁ - ବାକ୍ୟ: ଛୁଆ ଖେଳୁଛି ଆନନ୍ଦରେ ।",
+    a: ["ଛୁଆ", "ଆନନ୍ଦରେ", "କେଉଁଟି ବି ନୁହେଁ", "ଖେଳୁଛି"],
+    c: 2,
+  },
+  {q: "କେଉଁ ଶବ୍ଦଟିର ବନାନ ସଠିକ୍ ଅଟେ?",
+    a: [" ଦୁରଦୁଷ୍ଟି", "ଦୁରଦୃଷ୍ଟି", " ଦୂରଦୃଷ୍ଟି", "ଦୂରଦୁଷ୍ଟି"],
+    c: 3
+  },
+  {q: "ଏକ ଉପଯୁକ୍ତ ବିକଳ୍ପ ସାହାଯ୍ୟରେ ଶୂନ୍ୟସ୍ଥାନ ପୂରଣ କରନ୍ତୁ।: ଦେଶବାସୀ ରାଷ୍ଟ୍ର ପ୍ରେମରେ ଯୋଡି _______।",
+    a: [" ହେବ", "ଯିବ", "କରୁଛନ୍ତି", " ହୋଇଯାଇଛନ୍ତି"],
+    c: 3
+  },
+  {q: "‘ଦାଉ ସାଧିବା’ ରୂଢ଼ିର ଅର୍ଥ କ’ଣ?",
+    a: ["ଅସୁବିଧାରେ ପଡ଼ିବା", "ପ୍ରତିଶୋଧ ନେବା", " ଠକିଦେବା", "ନିଜ ସୁବିଧା ଦେଖିବା"],
+    c: 4
+  },
+  {q: "ନିମ୍ନରେ ଦିଆଯାଇଥିବା ବିକଳ୍ପ ମଧ୍ୟରୁଉପଯୁକ୍ତ ବିପରୀତ ଶବ୍ଦ ଚୟନ କରନ୍ତୁ । :କୋମଳ ",
+    a: ["1. ମୃଦୁ","ନରମ","କଠିନ","ନମନୀୟ"],
+    c: 3
+  },
+  {q: "ନିମ୍ନଲିଖିତ ବାକ୍ୟକୁଏକ ପଦରେ ପରିବର୍ତ୍ତନ କର ।''ପଛେ ପଛେ ଗମନ କରିବା''?",
+    a: [" ସୁଗମନ", "ପତ୍ୟାଗମନ", "ଅନୁଗମନ", " ଆଗମନ"],
+    c: 3,
+  },
+  
+  {q: "ପ୍ରଦତ୍ତ ବାକ୍ୟରେ ରେଖାଙ୍କିତ ହୋଇଥିବା ଶବ୍ଦ ସ୍ଥାନରେ ଏକ ଉପଯୁକ୍ତ ବାକ୍ୟଖଣ୍ଡ ବ୍ୟବହାର କରନ୍ତୁ। ଚୌକିଦାର ସମସ୍ତଙ୍କ ଘରୁଚୋରୀ କରେ।?",
+    a: [" ଡାକ୍ତର", "ପରିବର୍ତ୍ତନର ଆବଶ୍ୟକତା ନାହିଁ।", "ପୁଲିସ୍", " ଚୋର"],
+    c: 4,
+  },
+
+  {q: "ବଣ”ର ତତ୍ସମ ଶବ୍ଦ କେଉଁଟିଅଟେ?",
+    a: [" ନାରୀ", "ଫମ୍ପା", "ନାଉରୀ", " ଅରଣ୍ୟ"],
+    c: 4,
+  },
+    {q: "ନିମ୍ନରେ ଦିଆଯାଇଥିବା ବିକଳ୍ପ ମଧ୍ୟରୁଉପଯୁକ୍ତ ବିପରୀତ ଶବ୍ଦ ଚୟନ କରନ୍ତୁ । : ରୁଗ୍ଣ ",
+    a: ["ସୁସ୍ଥ", " ଜ୍ୱର ", " ରୋଗ", "  ଅସୁସ୍ଥ"],
+    c:1 ,
+  },
+
+      {q: "ଦିଆଯାଇଥିବା ବାକ୍ୟଟିର ସଠିକ୍ଓଡ଼ିଆ ଅନୁବାଦ ବାଛନ୍ତୁ: The share market fell sharply yesterday.",
+    a: [" ଶେୟାର ବଜାର ଗତକାଲିଭାରିକମିବ।", "  ଶେୟାର ବଜାର ଗତକାଲିଭାରିକମିଛି।", "ଶେୟାର ବଜାର ଗତକାଲିଭାରିକମିଥିଲା। ", " ଶେୟାର ବଜାର ଆଜିଭାରିକମିଥିଲା।"],
+    c: 3,
+  },    {q: " ନିମ୍ନଲିଖିତ ବିକଳ୍ପଗୁଡ଼ିକ ମଧ୍ୟରୁଦିଆଯାଇଥିବା ଓଡ଼ିଆ ବାକ୍ୟର ସଠିକ୍ଇଂରାଜୀ ଅନୁବାଦ ବାଛନ୍ତୁ:ଉତ୍ସର୍ଜନ ଗ୍ୟାସ ପରିବେଶ ପାଇଁବିପଦଜନକ।",
+    a: [" Emission gases are hazardous to the environment.", " Pollution increases environmental pollution.", " Emitted gases are dangerous to the forest. ", "Emission oils are hazardous to the environment. "],
+    c: 1,
+  }, 
+  {q: "ବାକ୍ୟର ଅଂଶଗୁଡ଼ିକରୁ ସଠିକ କ୍ରମରେ ପୁନଃସଜ୍ଜିତ କରନ୍ତୁ: \nମୌଳିକ \nP. କରିବା ହେଉଛି ଆର୍ଥିକ ସଙ୍କଟର ମୁକାବିଲା \nQ. ଭିତ୍ତିଭୂମି ଓ ଉତ୍ପାଦନ କ୍ଷେତ୍ରର ବିକାଶ \nR. ରାଜ୍ୟଗୁଡ଼ିକୁ ସାହାଯ୍ୟ କରିବା କେନ୍ଦ୍ରର ଦାୟିତ୍ବ \nS. ପାଇଁ ଏକମାତ୍ର ଉପାୟ ଏବଂ ଏହି କ୍ଷେତ୍ରରେ",
+    a: ["QPSR", "RSPQ", "SRPQ", "PRSQ"],
+    c: 1,
+  },
+  {
+    q: "ନିମ୍ନଲିଖିତ ରୂଢି ସହ ଏହାର ସଠିକ ଅର୍ଥ ପ୍ରାପ୍ତ କର: ‘ଟାଣ ଭାଙ୍ଗିବା’",
+    a: ["ଇଚ୍ଛା ମାରିବା", "ବିପଦରେ ପଡିବା", "ଗର୍ବ ଭାଙ୍ଗିବା", "ଜୋର ଦେବା"],
+    c: 3
+  },
+  {
+    q: "ନିମ୍ନଲିଖିତ ବିକଳ୍ପଗୁଡ଼ିକ ମଧ୍ୟରୁ ଦିଆଯାଇଥିବା ଓଡ଼ିଆ ବାକ୍ୟର ସଠିକ୍ ଇଂରାଜୀ ଅନୁବାଦ ବାଛନ୍ତୁ: ‘ଏକ ନୂତନ ରାଜନୈତିକ ଦଳ ସଂସଦକୁ ପ୍ରବେଶ କଲା ।’",
+    a: [
+      "A new political party left the Parliament.",
+      "All political parties entered the Parliament.",
+      "A new political party entered the Parliament.",
+      "All political parties left the Parliament."
+    ],
+    c: 3
+  },
+  {
+    q: "ଦିଆଯାଇଥିବା ଇଂରାଜୀ ବାକ୍ୟକୁ ଓଡ଼ିଆରେ ଅନୁବାଦ କର: ‘He was afraid of being late.’",
+    a: [
+      "ସେ ଭୟରେ ଡେରି କରୁଥିଲେ ।",
+      "ସେ ଡେରି ହୋଇଯିବା ନେଇ ଭୟ କରୁଛନ୍ତି ।",
+      "ସେ ଡେରି ହୋଇଯିବା ନେଇ ଭୟ କରୁଥିଲେ ।",
+      "ସେ ଡେରି ହୋଇଯିବାକୁ ନେଇ ଭୟ କରନ୍ତି ।"
+    ],
+    C:3,
+  },
+
+{ q: "ନିମ୍ନଲିଖିତ ଅନୁଚ୍ଛେଦକୁଧ୍ୟାନର ସହିତ ପଢ଼ନ୍ତୁ ଏବଂ ଦିଆଯାଇଥିବା ପ୍ରଶ୍ନଗୁଡ଼ିକର ସଠିକ୍ଉତ୍ତର ବାଛନ୍ତୁ ।\nଛାତ୍ରଶକ୍ତିଦେଶର ଏକ ପ୍ରମୁଖ ଶକ୍ତିକହିଲେ ଅତ୍ୟୁକ୍ତିହେବ ନାହିଁ। ଛାତ୍ରଛାତ୍ରୀମାନେ କେବଳ ଦେଶର ଭବିଷ୍ୟତ ନୁହନ୍ତି,\nଦେଶର ଭାଗ୍ୟବିଧାତା ମଧ୍ୟ । ଆଜିଯେଉଁମାନେ ଛାତ୍ରଛାତ୍ରୀ ଭାବରେ ଅଧ୍ୟୟନ କରୁଛନ୍ତି , ଆସନ୍ତାକାଲିସେମାନେ ଦେଶର\nଭାଗ୍ୟନିୟନ୍ତା ସାଜିବେ । ଦେଶକୁନୂତନ ଦିଗଦର୍ଶନ ଦେବେ । ଛାତ୍ର ସମାଜକୁଉତ୍ତମ ଭାବରେ ପରିଚାଳିତ କରିବାର\nଗୁରୁଦାୟିତ୍ୱ ସମାଜ ଉପରେ ନ୍ୟସ୍ତ । ଛାତ୍ରଛାତ୍ରୀମାନଙ୍କର ପରମ କର୍ତ୍ତବ୍ୟ ହେଉଛିନିଜକୁଶୃଙ୍ଖଲିତ ଭାବରେ ଗଢ଼ିତୋଳିବା\nଏବଂ ଭବିଷ୍ୟତ ନିମନ୍ତେ ପ୍ରସ୍ତୁତ ହେବା । କୌଣସିପ୍ରକାର ପ୍ରଲୋଭନ ଅଥବା ଅହେତୁକ ଆକର୍ଷଣ ନିକଟରେ ଛାତ୍ର ସମାଜ\nନିଜକୁସର୍ମପଣର୍ମ କରିଦେବା ଆଦୌ ବାଞ୍ଛନୀୟ ନୁହେଁ। ଛାତ୍ରଛାତ୍ରୀମାନେ ନିର୍ବାଚନ ପ୍ରକ୍ରିୟାରେ ଭାଗ ନେବେ ନା ନାହିଁ, ହିଁତାହା\nଏକ ବିପୁଳ ବିତର୍କର ଅପେକ୍ଷା ରଖେ । ମାତ୍ର , ଦେଶରେ ଥିବା ସମସ୍ୟାଗୁଡ଼ିକ ନିକଟରୁଛାତ୍ର ସମାଜ ନିଜକୁସମ୍ପୂର୍ଣ୍ଣଭାବରେ\nଦୁରେଇ ରଖିବା ଆଦୌ ସମୀଚୀନ ମନେ ହୁଏ ନାହିଁ। କାରଣ, ଛାତ୍ରଛାତ୍ରୀମାନଙ୍କ ଜରିଆରେ ସମାଜରେ ଅନେକ ମହତ କର୍ମ\nସାଧିତ ହୋଇପାରିବ । ସେମାନେ ସଦାବେଳେ ଗଠନ ମୂଳକ କାର୍ଯ୍ୟରେ ନିୟୋଜିତ ହେଲେ ଦେଶ ଓ ସମାଜର ଅଶେଷ\nକଲ୍ୟାଣ ସାଧିତ ହୋଇପାରିବ । ସଂକୀର୍ଣ୍ଣସ୍ୱାର୍ଥସିଦ୍ଧିନିମନ୍ତେ ଛାତ୍ର ସମାଜକୁବ୍ୟବହାର କରିବା ଆଦୌ ଶୁଭ ଲକ୍ଷଣ ନୁହେଁ।\nଏ କଥା ଆମର ବୁଦ୍ଧିଜୀବୀ ଓ ସମାଜ ନିୟନ୍ତାଗଣ ଭଲ ଭାବରେ ହୃଦୟଙ୍ଗମ କରିବା ଉଚିତ ।", a: [], },
+
+{ q: "ଅନୁଚ୍ଛେଦର ସ୍ୱର କ’ଣ?", 
+  a: ["ବିନୋଦନାତ୍ମକ","ଭାବପ୍ରବଣ, ସଚେତନତାମୂଳକ","ତଥ୍ୟପୂର୍ଣ୍ଣଓ ବୈଜ୍ଞାନିକ","ବ୍ୟଙ୍ଗ୍ୟାତ୍ମକ"],  c: 2 },
+
+{ q: "ଏହିଅନୁଚ୍ଛେଦର ମୁଖ୍ୟ ଧାରଣା କ'ଣ?", 
+  a: ["ଦେଶରେ ଥିବା ସମସ୍ୟା ଗୁଡିକ ନିକଟରୁଛାତ୍ର ସମାଜ ନିଜକୁସମ୍ପୂର୍ଣ୍ଣଭାବରେ ଦୁରେଇ ରଖିବା", "ଛାତ୍ରଛାତ୍ରୀମାନଙ୍କର ପରମ କର୍ତ୍ତବ୍ୟ ହେଉଛିନିଜକୁଶୃଙ୍ଖଳିତ ଭାବରେ ଗଢିତୋଳିବା ଓ ଭବିଷ୍ୟତ ନିମନ୍ତେ ପ୍ରସ୍ତୁତିହେବା", "ଛାତ୍ରଛାତ୍ରୀମାନେ ନିର୍ବାଚନ ପ୍ରକ୍ରିୟାରେ ଭାଗ ନେବା", "ଛାତ୍ରଛାତ୍ରୀ ଭାବରେ ଅଧ୍ୟୟନ ମାତ୍ର କରିବା"], c: 2 },
+
+{ q: "ନିମ୍ନୋକ୍ତ ବାକ୍ୟଗୁଡ଼ିକ ମଧ୍ୟରୁକେଉଁଟିଅନୁଚ୍ଛେଦରେ ତଥ୍ୟ ଭାବେ ଉଲ୍ଲେଖିତ ହୋଇଛି?", 
+  a: [" ଛାତ୍ରଛାତ୍ରୀମାନଙ୍କ ଜରିଆରେ ସମାଜରେ ଅନେକ ମହତ କର୍ମସାଧିତ ହୋଇପାରିବ","ସଂକୀର୍ଣ୍ଣସ୍ୱାର୍ଥସିଦ୍ଧିନିମନ୍ତେ ଛାତ୍ର ସମାଜକୁବ୍ୟବହାର କରିବା","ଯୁବପିଢିଙ୍କୁଏବେ ଅଧିକ ଟଙ୍କା ପାଇଁଉତ୍ସାହିତ କରେଇବା","ଛାତ୍ରଛାତ୍ରୀମାନେ ନିର୍ବାଚନ ପ୍ରକ୍ରିୟାରେ ଭାଗ ନେବା"], c: 1 },
+
+{ q: "ଅନୁଛେଦରେ କେଉଁଘଟଣାକୁଉଦାହରଣ ଭାବେ ଦିଆଯାଇଛି?", 
+  a: [" ଛାତ୍ରଛାତ୍ରୀମାନଙ୍କ ଜରିଆରେ ସମାଜରେ ଅନେକ ମହତ କର୍ମସାଧିତ ନ କରେଇବା"," ଯୁବପିଢିଙ୍କୁଏବେ ଅଧିକ ଟଙ୍କା ପାଇଁଉତ୍ସାହିତ କରେଇବା","ସଂକୀର୍ଣ୍ଣସ୍ୱାର୍ଥସିଦ୍ଧିନିମନ୍ତେ ଛାତ୍ର ସମାଜକୁବ୍ୟବହାର ନ କରିବା","ଛାତ୍ରଛାତ୍ରୀମାନେ ନିର୍ବାଚନ ପ୍ରକ୍ରିୟାରେ ଭାଗ ନେବା"], 
+  c: 3 },
+
+{ q: "ଅନୁଛେଦରେ ଦିଆଯାଇଥିବା କେଉଁଉଦାହରଣ 'ଛାତ୍ରଛାତ୍ରୀ' ମାନଙ୍କର ଗୁରୁତ୍ୱ ବୁଝାଏ?", 
+  a: ["ସଂକୀର୍ଣ୍ଣସ୍ୱାର୍ଥସିଦ୍ଧିନିମନ୍ତେ ଛାତ୍ର ସମାଜକୁବ୍ୟବହାର ନ କରିବା","ସଦାବେଳେ ଗଠନ ମୂଳକ କାର୍ଯ୍ୟରେ ନିୟୋଜିତ ନ ହେବା","ଛାତ୍ରଛାତ୍ରୀମାନଙ୍କ ଜରିଆରେ ସମାଜରେ ଅନେକ ମହତ କର୍ମସାଧିତ ନ କରେଇବା","ଛାତ୍ରଛାତ୍ରୀମାନେ ନିର୍ବାଚନ ପ୍ରକ୍ରିୟାରେ ଭାଗ ନେବା"],  c: 1 },
+
+  //logical reasoning questions can be added here in the same format as above
+{q: "Refer to the following letter series and answer the question that follows. Counting to be done from left to right only.: NHTXXQCIDJTKUBLMCNF. How many such vowels are there each of which is immediately preceded by a consonant and also immediately followed by a consonant?",
+    a: ["Four", "Two", "One", "Three"],
+    c: 2,
+  },
+  {q: "A, B, F, G, H and I live on six different floors of the same building. The lowermost floor in the building is numbered 1, the floor above it, number 2 and so on till the topmost floor is numbered 6. H lives immediately below I. B lives on an even numbered floor but not on floor number 4. Only two people live between B and G. I lives on an odd numbered floor but not on the lowermost floor. Only two people live between I and A. Who lives immediately above F?",
+    a: ["H", "G", "A", "B"],
+    c: 3,
+  },
+  {q: "DRUM is related to ITPK in a certain way based on the English alphabetical order. In the same way, NVKI is related to SXFG. To which of the following is XZAE related, following the same logic?",
+    a: ["CBVC", "BCUD", "DAWB", "FCWD"],
+    c: 1,
+  },
+  {
+    q: "C, D, E, F, X, Y and Z are sitting around a circular table facing the centre of the table. Only two people sit between X and C when counted from the right of X. Only three people sit between E and Z when counted from the right of Z. C sits to the immediate right of Z. Y sits to the immediate right of F. Who sits fourth to the right of D?",
+    a: ["E", "Y", "C", "F"],
+    c: 2,
+  },
+  {
+    q: "What will come in place of the question mark (?) in the following equation if ‘+’ and ‘−’are interchanged and ‘×’ and ‘÷’ are interchanged? \n5 + 14 × 2 − 5 ÷ 2 = ?",
+    a: ["8", "10", "12", "15"],
+    c: 1,
+  },
+{
+    q: "S is the mother of R. R is the sister of K. P is the father of B. B is the son of K. How is S related to B?",
+    a: ["Sister", "Mother's sister", "Mother's mother", "Mother"],
+    c: 3,
+  },
+  {
+    q: "E is the sister of G. G is the brother of H. N is the father of L. L is the son of H. How is E related to L?",
+    a: ["Mother", "Mother's mother", "Mother's sister", "Sister"],
+    c: 3,
+  },
+  {
+    q: "Six friends, A, B, F, G, H and I are sitting in a straight line facing north. Only two people sit to the left of I. Only two people sit between I and G. F sits immediately to the left of G. H sits to the immediate left of B. How many people sit to the right of A?",
+    a: ["One", "Two", "Three", "Four"],
+    c: 2,
+  },
+  {
+    q: "What should come in place of the question mark (?) in the given series based on the English alphabetical order? \nGTI, ANC, UHW, OBQ, ?",
+    a: ["IKO", "IVK", "UHJ", "IKV"],
+    c: 2,
+  },
+  {
+    q: "Refer to the following letter, number, symbol series: \n(Left) J 9 % A T 8 2 © $ $ F 6 7 * @ Z 2 N % $ M H (Right) \nIf all the numbers are dropped from the series, which of the following will be sixth from the left?",
+    a: ["A", "©", "T", "$"],
+    c: 4,
+  },
+  {
+    q: "In a certain code language, \n'A - B' means 'A is the sister of B', \n'A ! B' means 'A is the father of B', \n'A ₹ B' means 'A is the daughter of B' and \n'A # B' means 'A is the son of B'. \nBased on the above, how is C related to Z if 'C ! D - E # F ₹ Z'?",
+    a: ["Father", "Husband", "Daughter's husband", "Sister's husband"],
+    c: 3,
+  },
+  {
+    q: "If 1 is subtracted from each odd digit and 2 is added to each even digit in the number 471254635775, what will be the sum of the digits that are second from the left and second from the right in the new number thus formed?",
+    a: ["14", "11", "13", "12"],
+    c: 4,
+  },
+  {
+    q: "If 'A' stands for '÷', 'B' stands for '*', 'C' stands for '+' and 'D' stands for '-', what will come in place of the question mark (?) in the given equation? \n34 C 2 A 11 D 3 B 2 = ?",
+    a: ["30", "28", "29", "27"],
+    c: 1,
+  },
+  {
+    q: "Refer to the following number series and answer the question that follows (all numbers are single-digit numbers only and counting to be done from left to right only).: \n8 1 3 4 2 6 7 8 9 3 4 2 4 6 8 7 8 9 2 1 3 6 5 6 \nHow many such even digits are there, each of which is immediately preceded by a perfect square and immediately followed by an odd digit? (Note: 1 is also a perfect square.)",
+    a: ["One", "Two", "Three", "None"],
+    c: 1,
+  },
+  {
+    q: "Refer to the following letter, symbol series and answer the question that follows.Counting to be done from left to right only.: \nA V & C O £ # & C E  © € * B * S £ & L $ A A \nHow many such letters are there each of which is immediately preceded by a letter and also immediately followed by a symbol?",
+    a: ["3", "4", "5", "2"],
+    c: 1,
+  },
+  {
+    q: "Select the pair which follows the same pattern as that followed by the two pairs given below: \nYBD - HKM \nRUW - ADF",
+    a: ["ORT - WAB", "OQR - WZB", "OQR - XAC", "ORT - XAC"],
+    c: 4,
+  },
+  {
+    q: "A, B, C, D, L, M and N are sitting in a straight line facing north. Only three people sit between L and N. A sits to the immediate left of N. No one sits to the right of B. Only two people sit between B and A. M sits to the immediate right of D. How many people sit between C and M?",
+    a: ["Two", "Four", "One", "Three"],
+    c: 1,
+  },
+  {
+    q: "Select the pair that follows the same pattern as that followed by the two pairs given below: \nRIM : UMR \nXQW : AUB",
+    a: ["XRV : BUX", "DYG : GCL", "PYG : RBK", "HPL : MTO"],
+    c: 2,
+  },
+  {
+    q: "Read the given statements and conclusions carefully. Assuming that the informationgiven in the statements is true, even if it appears to be at variance with commonlyknown facts, decide which of the given conclusions logically follow(s) from thestatements \nStatements: All parrots are keys. No parrot is a sun. All suns are almonds. \nConclusion (I): No almond is a key. \nConclusion (II): Some almonds are parrots.",
+    a: ["Both conclusions (I) and (II) follow", "Neither conclusion (I) nor (II) follows", "Only conclusion (I) follows", "Only conclusion (II) follows"],
+    c: 2,
+  },
+  {
+    q: "What should come in place of the question mark (?) in the given series? \n351, 303, 255, 207, 159, ?",
+    a: ["111", "333", "444", "222"],
+    c: 1,
+  }
+];
+
+    let currentIdx = 0;
+    let shuffledData = [];
+    let stats = { correct: 0, wrong: 0 };
+    let timerInterval = null;
+    let remainingSeconds = 90 * 60; // 90 minutes
+    let pendingPassage = null;
+    let warningTriggered = false;
+
+    // shuffle options each exam start to randomize choices
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    async function attemptEnterFullscreenAndLandscape() {
+      // Try fullscreen (may be blocked without user gesture)
+      try {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) await docEl.requestFullscreen();
+        else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
+      } catch (e) {
+        throw new Error('fullscreen-failed');
+      }
+
+      // Try to lock orientation to landscape (best-effort)
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock('landscape');
+        } else if (screen.lockOrientation) {
+          screen.lockOrientation('landscape');
+        }
+      } catch (e) {
+        // ignore orientation failures
+      }
+    }
+
+    function enableFullscreenAndLandscape() {
+      attemptEnterFullscreenAndLandscape().then(() => {
+        const p = document.getElementById('fs-prompt'); if (p) p.style.display = 'none';
+      }).catch(() => {
+        // If still blocked, keep the prompt visible
+        const p = document.getElementById('fs-prompt'); if (p) p.style.display = 'block';
+      });
+    }
+
+    function init() {
+        if (questions.length === 0) {
+            alert('No questions available. Please add questions to start the exam.');
+            return;
+        }
+
+        stats = { correct: 0, wrong: 0 };
+        currentIdx = 0;
+        pendingPassage = null;
+        document.getElementById('exam-main').style.display = 'flex';
+        document.getElementById('result-screen').style.display = 'none';
+
+        // preserve original questions order
+        shuffledData = [...questions];
+
+        // attempt fullscreen + landscape on start; if blocked, show prompt button
+        attemptEnterFullscreenAndLandscape().then(() => {
+          const p = document.getElementById('fs-prompt'); if (p) p.style.display = 'none';
+        }).catch(() => {
+          const p = document.getElementById('fs-prompt'); if (p) p.style.display = 'block';
+        });
+
+        const container = document.getElementById('questions-container');
+        const palette = document.getElementById('palette');
+        container.innerHTML = "";
+        palette.innerHTML = "";
+
+        let displayIndex = 0;
+        shuffledData.forEach((item, i) => {
+          // If an item has no options (used as passage), hold it and attach to next relevant question
+          if (Array.isArray(item.a) && item.a.length === 0) { pendingPassage = item.q; return; }
+          const correctVal = (typeof item.c === 'number' && item.c > 0) ? item.a[item.c - 1] : null; // c is 1-based in data
+          const shuffledOptions = Array.isArray(item.a) ? shuffleArray([...item.a]) : [];
+
+          const displayIdx = displayIndex++;
+          const block = document.createElement('div');
+          block.className = `question-block ${displayIdx === 0 ? 'active' : ''}`;
+          block.id = `q-block-${displayIdx}`;
+          let qHtml = '';
+          if (pendingPassage) {
+            qHtml += `<div class="passage">${pendingPassage}</div>`;
+            pendingPassage = null;
+          }
+          qHtml += `<h3>Question ${displayIdx + 1}</h3><p>${item.q}</p>`;
+          block.innerHTML = qHtml;
+
+            const optionsWrapper = document.createElement('div');
+            shuffledOptions.forEach((opt) => {
+                const btn = document.createElement('div');
+                btn.className = 'option';
+                btn.innerText = opt;
+                btn.setAttribute('aria-label', `Option: ${opt}`);
+              btn.onclick = () => handleAnswer(displayIdx, opt, correctVal, btn, optionsWrapper);
+                optionsWrapper.appendChild(btn);
+            });
+            block.appendChild(optionsWrapper);
+
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback-msg';
+            feedback.id = `feedback-${displayIdx}`;
+            block.appendChild(feedback);
+
+            container.appendChild(block);
+
+            const dot = document.createElement('div');
+            dot.className = 'q-circle';
+            dot.id = `palette-${displayIdx}`;
+            dot.innerText = displayIdx + 1;
+            dot.setAttribute('aria-label', `Question ${displayIdx + 1}`);
+            dot.onclick = () => jumpTo(displayIdx);
+            palette.appendChild(dot);
+        });
+          // reset and start timer when exam initializes/restarts
+          stopTimer();
+          remainingSeconds = 90 * 60;
+          startTimer();
+        }
+
+    function handleAnswer(qIdx, selected, correct, btn, wrapper) {
+        const feedback = document.getElementById(`feedback-${qIdx}`);
+        const allOptions = wrapper.querySelectorAll('.option');
+        allOptions.forEach(opt => opt.classList.add('disabled'));
+
+        if (selected === correct) {
+            btn.classList.add('correct');
+            stats.correct++;
+            feedback.innerHTML = `<span style="color:var(--success)">✔ Correct!</span>`;
+        } else {
+            btn.classList.add('wrong');
+            stats.wrong++;
+            feedback.innerHTML = `<span style="color:var(--error)">✘ Incorrect. The correct answer is: ${correct}</span>`;
+            allOptions.forEach(opt => {
+                if (opt.innerText === correct) opt.classList.add('correct');
+            });
+        }
+        feedback.style.display = 'block';
+        document.getElementById(`palette-${qIdx}`).classList.add('answered');
+    }
+
+    function formatTime(sec) {
+      const hrs = Math.floor(sec / 3600);
+      const mins = Math.floor((sec % 3600) / 60);
+      const secs = sec % 60;
+      if (hrs > 0) return `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+      return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    }
+
+    function startTimer() {
+      const el = document.getElementById('timer');
+      if (!el) return;
+      el.innerText = formatTime(remainingSeconds);
+      timerInterval = setInterval(() => {
+        remainingSeconds--;
+        if (remainingSeconds === 300) triggerWarning();
+        if (remainingSeconds <= 0) {
+          el.innerText = '00:00';
+          stopTimer();
+          finishExam();
+          return;
+        }
+        el.innerText = formatTime(remainingSeconds);
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    function triggerWarning() {
+      if (warningTriggered) return;
+      warningTriggered = true;
+      const t = document.getElementById('timer');
+      const w = document.getElementById('time-warning');
+      if (t) t.classList.add('timer-warning');
+      if (w) w.style.display = 'block';
+      // optionally, flash document title to draw attention
+      let flash = 0;
+      const originalTitle = document.title;
+      const titleInterval = setInterval(() => {
+        flash++;
+        document.title = flash % 2 === 0 ? '!! 5 minutes left !!' : originalTitle;
+        if (flash > 10) { clearInterval(titleInterval); document.title = originalTitle; }
+      }, 800);
+    }
+
+    function finishExam() {
+      stopTimer();
+        document.getElementById('exam-main').style.display = 'none';
+        const resultScreen = document.getElementById('result-screen');
+        resultScreen.style.display = 'block';
+
+        const total = document.querySelectorAll('.question-block').length;
+        const attempted = stats.correct + stats.wrong;
+        const skipped = total - attempted;
+
+        resultScreen.innerHTML = `
+            <h1 style="color:var(--primary)">Exam Summary</h1>
+            <div style="text-align:left; background:#f1f3f4; padding:20px; border-radius:8px; margin:20px 0; font-size:1.1rem;">
+                <p>Total Questions: <b>${total}</b></p>
+                <p style="color:var(--success)">Total Correct: <b>${stats.correct}</b></p>
+                <p style="color:var(--error)">Total Wrong: <b>${stats.wrong}</b></p>
+                <p style="color:var(--gray)">Skipped: <b>${skipped}</b></p>
+                <hr>
+                <h2 style="text-align:center">Score: ${((stats.correct / total) * 100).toFixed(2)}%</h2>
+            </div>
+            <h3 style="text-align:center">Thank you!</h3>
+            <button class="btn-ui" style="background:var(--primary); padding:15px 40px; font-size:1rem;" onclick="init()">RESTART EXAM</button>
+            <h3><a href="https://www.instagram.com/tanmaylucky21/" target="_blank">For more DM me on Instagram</a></h3>
+        `;
+    }
+
+    function jumpTo(i) {
+        document.querySelector('.question-block.active').classList.remove('active');
+        document.getElementById(`q-block-${i}`).classList.add('active');
+        currentIdx = i;
+    }
+
+    function changeQuestion(dir) {
+      const total = document.querySelectorAll('.question-block').length;
+      let newIdx = currentIdx + dir;
+      if (newIdx >= 0 && newIdx < total) jumpTo(newIdx);
+    }
+
+    window.onload = init;
+</script>
+
+</body>
+</html>
